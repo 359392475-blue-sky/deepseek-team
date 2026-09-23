@@ -40,6 +40,8 @@ Target packages declaration-merge their snapshot and Location data maps, then re
 <a id="shell-and-standard-props"></a>
 ## Shell and standard props
 
+The shell keeps the resident composer full width by default. When an active Chat view exposes a real occupant under its `conversation.chat.sidecar` anchor, the shell constrains the composer to the transcript column and hides the transcript-width drag handles; at widths up to 900px, it restores the full-width composer for the stacked layout. The empty anchor changes neither behavior. The transcript and composer share `--dsh-chat-sidecar-transcript-share`, defaulting to 42%; companions that resize or collapse their column publish the matching width on their `[data-conversation-scroll]` ancestor.
+
 The shared image slot props keep display choices separate from durable references: `thumbnail` requests a contained attachment-list thumbnail, while `compact` requests a cropped gallery tile. An optional per-image `label` supplies the accessible display name; loading and cache identity still use the original attachment reference. [ui-attachment](../ui-attachment/README.md) owns rendering and the lightbox.
 
 The composer measures its expanded control groups after size, content, visibility, or font-loading changes. If they cannot share a line, the row sets `--dsh-composer-model-text-display: none` and `--dsh-composer-model-icon-display: block` for the model seat; their defaults are `block` and `none`. Wrapping remains available if even the icon cannot fit.
@@ -160,5 +162,3 @@ None.
 </details>
 
 **Runtime invariant:** No companion is published. Conversation Definitions, target builders, and Views are already validated by their owning registries and the Slot ledger.
-
-The shell keeps the resident composer full width by default. When an active Chat view exposes a real occupant under its `conversation.chat.sidecar` anchor, the shell constrains the composer to the 42% transcript column and hides the transcript-width drag handles; at widths up to 900px, it restores the full-width composer for the stacked layout. The empty anchor changes neither behavior.

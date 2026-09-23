@@ -1,0 +1,5 @@
+- Wide collapsed: center difference 0px; column-width difference 0px; horizontal overflow 0px.
+- Wide expanded: center difference 0px; column-width difference 0px; horizontal overflow 0px.
+- Wide collapsed again: center difference 0px; column-width difference 0px; horizontal overflow 0px.
+- Narrow collapsed: center difference 0px; column-width difference 0px; horizontal overflow 0px.
+- Narrow expanded: center difference 0px; column-width difference 0px; horizontal overflow 0px.

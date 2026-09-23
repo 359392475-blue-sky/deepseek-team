@@ -330,9 +330,15 @@
 .root[data-expanded='false'] .eyebrow { color: var(--flight-muted); font-size: 11px; font-weight: 400; text-transform: none; letter-spacing: 0; }
 
 /* Only this companion replaces the generic split; other Chat sidecars keep their layout. */
+:global([data-conversation-scroll]):has(.root) {
+  --dsh-chat-sidecar-transcript-share: calc(100% - min(280px, 28%));
+}
+:global([data-conversation-scroll]):has(.root[data-expanded='false']) {
+  --dsh-chat-sidecar-transcript-share: 100%;
+}
 :global([data-conversation-chat-sidecar]):has(> :global([data-slot='conversation.chat.sidecar']) > .root) {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) min(280px, 28%);
+  grid-template-columns: minmax(0, var(--dsh-chat-sidecar-transcript-share)) minmax(0, 1fr);
   grid-template-rows: auto;
 }
 :global([data-conversation-chat-sidecar]) > :global([data-slot='conversation.chat.sidecar']) > .root {
@@ -359,6 +365,7 @@
 }
 
 @media (max-width: 900px) {
+  :global([data-conversation-scroll]):has(.root) { --dsh-chat-sidecar-transcript-share: 100%; }
   :global([data-conversation-chat-sidecar]):has(> :global([data-slot='conversation.chat.sidecar']) > .root) { grid-template-columns: minmax(0, 1fr); }
   :global([data-conversation-chat-sidecar]):has(> :global([data-slot='conversation.chat.sidecar']) > .root) > :global(:not([data-slot])) { grid-column: 1; grid-row: 2; }
   :global([data-conversation-chat-sidecar]) > :global([data-slot='conversation.chat.sidecar']) > .root {

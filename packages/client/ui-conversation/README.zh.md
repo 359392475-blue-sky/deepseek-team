@@ -40,6 +40,8 @@ target package 通过 declaration merge 扩展 snapshot 与 Location data map，
 <a id="shell-and-standard-props"></a>
 ## Shell 与标准 props
 
+shell 默认保持常驻 composer（输入器）全宽。当活动 Chat view 的 `conversation.chat.sidecar` anchor（锚点）下存在真实 occupant（占用组件）时，shell 会把 composer 限制在 transcript（对话记录）列，并隐藏 transcript 宽度拖拽柄；宽度不超过 900px 时，为上下堆叠布局恢复全宽 composer。空 anchor 不改变任何行为。transcript 与 composer 共用 `--dsh-chat-sidecar-transcript-share`，默认为 42%；会调整或收起分栏的伴随组件在共同的 `[data-conversation-scroll]` 祖先上发布对应宽度。
+
 共享图片插槽属性将展示选择与持久化引用分开：`thumbnail` 请求完整缩放的附件列表缩略图，`compact` 请求裁剪的图片方块。每张图片可通过可选的 `label` 提供无障碍展示名称；加载和缓存标识仍使用原始附件引用。[ui-attachment](../ui-attachment/README.zh.md) 负责渲染与灯箱。
 
 控件组的尺寸、内容、可见性或字体加载状态变化后，composer 测量展开状态下的控件组。若无法排在同一行，控制栏为模型位设置 `--dsh-composer-model-text-display: none` 和 `--dsh-composer-model-icon-display: block`；两者默认值分别为 `block` 和 `none`。若连图标也放不下，仍允许换行。
@@ -160,5 +162,3 @@ selector 必须是 owner currency 的纯函数。非 null 返回值作为 `match
 </details>
 
 **运行时不变式：** 不发布伴生入口。Conversation Definition、target builder 与 View 已由其所属注册表和 Slot ledger 校验。
-
-shell 默认保持常驻 composer（输入器）全宽。当活动 Chat view 的 `conversation.chat.sidecar` anchor（锚点）下存在真实 occupant（占用组件）时，shell 会把 composer 限制在 42% 的 transcript（对话记录）列，并隐藏 transcript 宽度拖拽柄；宽度不超过 900px 时，为上下堆叠布局恢复全宽 composer。空 anchor 不改变任何行为。

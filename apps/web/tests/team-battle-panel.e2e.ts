@@ -21,6 +21,7 @@ const TEAM_SPACE_EXPECTED = join(SNAPSHOT_DIR, 'team-space.expected.md')
 const FILE_ACTIONS_EXPECTED = join(SNAPSHOT_DIR, 'file-actions.expected.md')
 const SHARED_WORKFLOW_EXPECTED = join(SNAPSHOT_DIR, 'shared-workflow.expected.md')
 const CREATE_AUTH_EXPECTED = join(SNAPSHOT_DIR, 'create-authorization.expected.md')
+const COMPOSER_GEOMETRY_EXPECTED = join(SNAPSHOT_DIR, 'composer-geometry.expected.md')
 const OVERLAY = fileURLToPath(new URL('./team-battle-panel.overlay.yml', import.meta.url))
 const HOST_PATCH = fileURLToPath(new URL('../../../packages/experimental/team-battle-profile/cordis.patch.yml', import.meta.url))
 const WEB_PATCH = fileURLToPath(new URL('../../../packages/experimental/team-battle-web-profile/cordis.patch.yml', import.meta.url))
@@ -135,6 +136,69 @@ describe('web e2e: Team Battle panel', () => {
     await scaffold?.close()
     if (previousConnectorSecret === undefined) delete process.env.TEAM_BATTLE_CODEX_TOKEN
     else process.env[CONNECTOR_SECRET_ENV] = previousConnectorSecret
+  })
+
+  it('centers the composer with the transcript when the game expands, collapses, and stacks', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-team-composer-geometry'))
+    const originalViewport = page.viewportSize()
+    const game = page.locator('[data-flight-game-panel]')
+    const checks: string[] = []
+    await selectView(page, 'Chat')
+    await game.getByRole('button', { name: 'Expand game', exact: true }).waitFor()
+    try {
+      for (const { label, width, expanded } of [
+        { label: 'Wide collapsed', width: 1920, expanded: false },
+        { label: 'Wide expanded', width: 1920, expanded: true },
+        { label: 'Wide collapsed again', width: 1920, expanded: false },
+        { label: 'Narrow collapsed', width: 480, expanded: false },
+        { label: 'Narrow expanded', width: 480, expanded: true },
+      ]) {
+        await page.setViewportSize({ width, height: 1000 })
+        if ((await game.getAttribute('data-expanded') === 'true') !== expanded) {
+          await game.getByRole('button', { name: expanded ? 'Expand game' : 'Collapse game', exact: true }).click()
+        }
+        const measure = async () => await page.evaluate(() => {
+          const host = document.querySelector<HTMLElement>('[data-conversation-scroll]')
+          const flow = host?.querySelector<HTMLElement>('[data-chat-flow]')
+          const card = host?.querySelector<HTMLElement>('[data-composer-card]')
+          const seat = host?.querySelector<HTMLElement>('[data-composer-seat]')
+          const panel = host?.querySelector<HTMLElement>('[data-flight-game-panel]')
+          if (host === null || flow == null || card == null || seat == null || panel == null) {
+            throw new Error('conversation geometry elements are missing')
+          }
+          const transcript = flow.parentElement?.getBoundingClientRect()
+          if (transcript === undefined) throw new Error('transcript column is missing')
+          const flowRect = flow.getBoundingClientRect()
+          const cardRect = card.getBoundingClientRect()
+          const seatRect = seat.getBoundingClientRect()
+          const hostRect = host.getBoundingClientRect()
+          const panelRect = panel.getBoundingClientRect()
+          return {
+            centerDifference: Math.abs((flowRect.left + flowRect.right - cardRect.left - cardRect.right) / 2),
+            seatWidthDifference: Math.abs(seatRect.width - transcript.width),
+            hostOverflow: host.scrollWidth - host.clientWidth,
+            documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+            cardContained: cardRect.left >= hostRect.left && cardRect.right <= hostRect.right,
+            gameWidth: panelRect.width,
+          }
+        })
+        await expect.poll(async () => {
+          const geometry = await measure()
+          return geometry.centerDifference < 1 && geometry.seatWidthDifference < 1
+            && geometry.hostOverflow <= 1 && geometry.documentOverflow <= 1 && geometry.cardContained
+        }).toBe(true)
+        const geometry = await measure()
+        if (expanded && width > 900) expect(geometry.gameWidth).toBeLessThanOrEqual(280)
+        checks.push(`- ${label}: center difference ${Math.round(geometry.centerDifference)}px; column-width difference ${Math.round(geometry.seatWidthDifference)}px; horizontal overflow ${Math.max(geometry.hostOverflow, geometry.documentOverflow)}px.`)
+      }
+      await compareOrRefreshGolden(COMPOSER_GEOMETRY_EXPECTED, checks.join('\n'), MODE)
+      expect(tripwire.pageErrors).toEqual([])
+    } finally {
+      if (await game.getAttribute('data-expanded') === 'true') {
+        await game.getByRole('button', { name: 'Collapse game', exact: true }).click()
+      }
+      if (originalViewport !== null) await page.setViewportSize(originalViewport)
+    }
   })
 
   it('persists the Query weapon and accepted weighted workflow while keeping leisure shield independent', async () => {
@@ -621,6 +685,6 @@ describe('web e2e: shared Team Space across isolated Hosts', () => {
 
 describe('Team Battle browser fixtures', () => {
   it.skipIf(MODE === 'record')('keeps the fixture inventory closed', async () => {
-    await assertFixtureInventory(SNAPSHOT_DIR, ['team-space.expected.md', 'file-actions.expected.md', 'shared-workflow.expected.md', 'create-authorization.expected.md'])
+    await assertFixtureInventory(SNAPSHOT_DIR, ['team-space.expected.md', 'file-actions.expected.md', 'shared-workflow.expected.md', 'create-authorization.expected.md', 'composer-geometry.expected.md'])
   })
 })

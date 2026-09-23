@@ -2112,6 +2112,21 @@ describe('ChatView', () => {
     ])
   })
 
+  it.each(['zh', 'en'] as const)('explains an exhausted model account in %s without losing earlier output', async (language) => {
+    const h = makeHarness({ nodes: [
+      user(1, 'Research a topic'),
+      assistant(2, 'Earlier research is still available.'),
+      { ...turnError(3, 'QUOTA'), message: 'Insufficient Balance' },
+    ] })
+    h.props.t = language === 'zh' ? makeTranslate(zh, commonZh) : makeTranslate(en, commonEn)
+    const view = render(<h.ChatView {...h.props} />)
+    const status = view.getByRole('status')
+    expect(view.getByText('Earlier research is still available.')).toBeDefined()
+    expect(status.querySelector('[data-state]')?.getAttribute('data-state')).toBe('error')
+    expect(status.textContent).not.toContain('Insufficient Balance')
+    await expect(`${status.textContent}\n`).toMatchFileSnapshot(`./expected/quota-failure.${language}.expected.txt`)
+  })
+
   it('renders the max-tokens notice with localized guidance, distinct from turn errors', () => {
     const h = makeHarness({ nodes: [user(1, 'try'), assistant(2, 'truncated'), turnMaxTokens(3)] })
     const view = render(<h.ChatView {...h.props} />)

@@ -38,7 +38,7 @@ Settings → General → Open chat links in selects the destination for ordinary
 <a id="chat-sidecar"></a>
 ## Chat sidecar
 
-The `conversation.chat.sidecar` single slot is a session-scoped companion surface for the live Chat transcript. Register through `ctx.slots.inject('conversation.chat.sidecar', ...)`; the occupant receives the standard Session props and owns its own data loading and presentation. An occupied slot uses an approximately 42/58 transcript/sidecar split on desktop, keeps the resident composer in the transcript column, and limits the sidecar to the live conversation viewport above that composer so bottom-follow does not clip its header. At widths up to 900px, the sidecar stacks below the transcript. With no occupant, the renderer's layout-neutral slot anchor leaves the transcript and full-width composer unchanged.
+The `conversation.chat.sidecar` single slot is a session-scoped companion surface for the live Chat transcript. Register through `ctx.slots.inject('conversation.chat.sidecar', ...)`; the occupant receives the standard Session props and owns its own data loading and presentation. An occupied slot defaults to an approximately 42/58 transcript/sidecar split on desktop, keeps the resident composer in the transcript column, and limits the sidecar to the live conversation viewport above that composer so bottom-follow does not clip its header. At widths up to 900px, the sidecar stacks below the transcript. With no occupant, the renderer's layout-neutral slot anchor leaves the transcript and full-width composer unchanged. Resizable or collapsible companions use the [shared transcript and composer width](../ui-conversation/README.md#shell-and-standard-props).
 
 -----
 
@@ -52,7 +52,7 @@ When an Assistant attempt retires without a visible message, Chat hides its alre
 <a id="command-and-failure-rows"></a>
 ## Command and failure rows
 
-Generic command rows retain the ordinary command glyph in every lifecycle state; failure remains explicit through the row state and summary. A terminal Turn failure remains a separate red-dot notice; intermediate model retries do not create that notice, and an output-token limit uses the amber warning dot.
+Generic command rows retain the ordinary command glyph in every lifecycle state; failure remains explicit through the row state and summary. A terminal Turn failure remains a separate red-dot notice; intermediate model retries do not create that notice, and an output-token limit uses the amber warning dot. Quota failures show localized account-limit guidance; they do not change provider credentials or retry requests.
 
 -----
 

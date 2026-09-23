@@ -38,7 +38,7 @@ Chat 在节点列表外通过一个 `MarkdownDelegateProvider` 提供文件及 H
 <a id="chat-sidecar"></a>
 ## Chat sidecar
 
-`conversation.chat.sidecar` single slot（单占位插槽）是与实时 Chat transcript（对话记录）并行的会话作用域伴随界面。使用 `ctx.slots.inject('conversation.chat.sidecar', ...)` 注册；occupant（占用组件）会获得标准 Session props（会话属性），并自行拥有数据加载与呈现。插槽被占用时，桌面端使用约 42/58 的 transcript/sidecar 分栏，常驻 composer（输入器）只位于 transcript 列；sidecar 高度限制在 composer 上方的实时会话 viewport（视口）内，避免跟随到底部时裁掉顶部。宽度不超过 900px 时，sidecar 改到 transcript 下方。没有 occupant 时，renderer（渲染器）的无布局 slot anchor（插槽锚点）会保持原有 transcript 和全宽 composer 不变。
+`conversation.chat.sidecar` single slot（单占位插槽）是与实时 Chat transcript（对话记录）并行的会话作用域伴随界面。使用 `ctx.slots.inject('conversation.chat.sidecar', ...)` 注册；occupant（占用组件）会获得标准 Session props（会话属性），并自行拥有数据加载与呈现。插槽被占用时，桌面端默认使用约 42/58 的 transcript/sidecar 分栏，常驻 composer（输入器）只位于 transcript 列；sidecar 高度限制在 composer 上方的实时会话 viewport（视口）内，避免跟随到底部时裁掉顶部。宽度不超过 900px 时，sidecar 改到 transcript 下方。没有 occupant 时，renderer（渲染器）的无布局 slot anchor（插槽锚点）会保持原有 transcript 和全宽 composer 不变。可调整或收起的伴随组件使用[对话记录与输入器共用的宽度](../ui-conversation/README.zh.md#shell-and-standard-props)。
 
 -----
 
@@ -52,7 +52,7 @@ Assistant 尝试结束且没有可见消息时，Chat 隐藏已发布的 Node，
 <a id="command-and-failure-rows"></a>
 ## 指令与失败行
 
-通用指令行在所有生命周期状态中都保留普通指令图标；失败仍通过行状态与摘要明确表达。终止轮次的错误仍是独立的红点提示；模型的中间重试不会创建该提示，达到输出 token 上限时使用琥珀色警告点。
+通用指令行在所有生命周期状态中都保留普通指令图标；失败仍通过行状态与摘要明确表达。终止轮次的错误仍是独立的红点提示；模型的中间重试不会创建该提示，达到输出 token 上限时使用琥珀色警告点。额度不足时显示本地化的账户限制处理指引，不会更改模型服务凭证或重试请求。
 
 -----
 
