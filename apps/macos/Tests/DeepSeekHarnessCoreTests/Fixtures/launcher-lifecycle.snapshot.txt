@@ -1,0 +1,18 @@
+cancel:
+  idle
+  choosing
+  idle
+ready-close-reopen-quit:
+  idle
+  choosing
+  starting
+  ready
+  ready
+  stopping
+  idle
+failure-retry:
+  starting
+  stopping
+  failed
+  starting
+  ready

@@ -1,0 +1,16 @@
+{
+  "name": "dsh-team-server-profile",
+  "private": true,
+  "type": "module",
+  "dsh": { "profile": { "bundles": [] } },
+  "dependencies": {
+    "@deepseek-ai/dsh-credentials-local": "0.1.7-alpha.2",
+    "@deepseek-ai/dsh-experimental-team-battle": "0.1.7-alpha.2",
+    "@deepseek-ai/dsh-experimental-team-battle-connector-http": "0.1.7-alpha.2",
+    "@deepseek-ai/dsh-host-webserver": "0.1.7-alpha.2",
+    "@deepseek-ai/dsh-storage": "0.1.7-alpha.2",
+    "@deepseek-ai/dsh-storage-domain": "0.1.7-alpha.2",
+    "@deepseek-ai/dsh-storage-json": "0.1.7-alpha.2",
+    "@deepseek-ai/dsh-typert-registry": "0.1.7-alpha.2"
+  }
+}

@@ -1,0 +1,59 @@
+# Equivalent to the explicit Team Battle Host and Web profile layers over the
+# scaffold's stable base and Web bundles.
+- insert:
+    - id: team-battle
+      name: '@deepseek-ai/dsh-experimental-team-battle'
+      config:
+        projectId: lowpower-team-battle
+        projectName: DeepSeek Harness 团战版
+        projectGoal: 让三至四名成员与各自 Codex 围绕同一项目共享经过确认的 Context、任务与产物。
+        localMemberId: product
+        allowSimulation: true
+        storageLocation: !!js dshHomePath('storages')
+        members:
+          - id: product
+            name: 蓝天
+            role: 产品
+            color: '#4176e6'
+          - id: engineering
+            name: 研发
+            role: 研发
+            color: '#27a276'
+          - id: quality
+            name: 测试
+            role: 测试
+            color: '#d88434'
+          - id: design
+            name: UI
+            role: UI
+            color: '#8a6be8'
+        maxTasks: 128
+        maxContextEntries: 256
+        maxArtifacts: 256
+        maxActivityEntries: 512
+        maxProcessedEventIds: 2048
+        maxWeaponGrants: 2048
+        memberOfflineAfterMs: 60000
+        shieldDamagePerQuery: 3
+
+- id: ui-trajectory
+  disabled: true
+
+- id: directory-picker
+  disabled: true
+
+- insert:
+    - id: directory-picker-browse
+      name: '@deepseek-ai/dsh-host-directory-picker-browse'
+    - id: ui-directory-picker-browse
+      name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'
+
+    - id: team-battle-connector-http
+      name: '@deepseek-ai/dsh-experimental-team-battle-connector-http'
+      config:
+        path: /team-battle/codex
+        secretEnv: TEAM_BATTLE_CODEX_TOKEN
+        maxBodyBytes: 262144
+
+    - id: ui-team-battle
+      name: '@deepseek-ai/dsh-experimental-client-ui-team-battle'

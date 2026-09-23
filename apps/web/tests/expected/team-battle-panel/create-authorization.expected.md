@@ -1,0 +1,1 @@
+- alert: The server did not accept the creation authorization code. Check the shared server address and confirm the complete code with its administrator, then retry. Your project name, goal, and member details are retained. To join an existing project, use “Join with an invitation”.

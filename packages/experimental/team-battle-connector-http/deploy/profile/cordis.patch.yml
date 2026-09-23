@@ -1,0 +1,49 @@
+# Standalone collaboration data host. Launch through dsh --profile team-server.
+# TLS and the public /team-battle prefix belong to the reverse proxy.
+- insert:
+    - id: typert
+      name: '@deepseek-ai/dsh-typert-registry'
+    - id: credentials
+      name: '@deepseek-ai/dsh-credentials-local'
+      config:
+        watch: false
+    - id: storage
+      name: '@deepseek-ai/dsh-storage'
+    - id: storage-json
+      name: '@deepseek-ai/dsh-storage-json'
+      config:
+        root: !!js dshHomePath('storages')
+    - id: storage-domain
+      name: '@deepseek-ai/dsh-storage-domain'
+      config:
+        backend: json
+    - id: webserver
+      name: '@deepseek-ai/dsh-host-webserver'
+      config:
+        host: 127.0.0.1
+        port: 0
+    - id: team-battle
+      name: '@deepseek-ai/dsh-experimental-team-battle'
+      config:
+        projectId: server-bootstrap
+        projectName: Shared Team Server
+        projectGoal: Store explicitly published team collaboration data.
+        localMemberId: server
+        allowSimulation: false
+        storageLocation: !!js dshHomePath('storages')
+        members:
+          - id: server
+            name: Server
+            role: Host
+    - id: team-battle-connector-http
+      name: '@deepseek-ai/dsh-experimental-team-battle-connector-http'
+      config:
+        path: /legacy-codex
+        secretEnv: TEAM_BATTLE_LEGACY_TOKEN
+        maxBodyBytes: 262144
+        maxNetworkBodyBytes: 8388608
+        networkRequestTimeoutMs: 15000
+        hostedServer:
+          host: 127.0.0.1
+          port: 18864
+          accessTokenRef: TEAM_BATTLE_SERVER_ACCESS_TOKEN

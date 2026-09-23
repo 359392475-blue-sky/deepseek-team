@@ -1,0 +1,10 @@
+# A dedicated collaboration listener on an OS-assigned loopback port.
+- id: team-battle-connector-http
+  config:
+    path: /team-battle/codex
+    secretEnv: TEAM_BATTLE_CODEX_TOKEN
+    maxBodyBytes: 262144
+    hostedServer:
+      host: 127.0.0.1
+      port: 0
+      accessTokenRef: TEAM_BATTLE_E2E_CREATION_TOKEN

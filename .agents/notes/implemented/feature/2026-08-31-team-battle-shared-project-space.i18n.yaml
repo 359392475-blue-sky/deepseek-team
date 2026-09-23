@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-31-team-battle-shared-project-space.md
+2026-08-31-team-battle-shared-project-space.md: de7e3609ab3f9cc30c4f7169a9bf6b0c34b45c7f
+2026-08-31-team-battle-shared-project-space.zh.md: 2f60408a4f94feb908d1a5d5598bee15fc8f40ef

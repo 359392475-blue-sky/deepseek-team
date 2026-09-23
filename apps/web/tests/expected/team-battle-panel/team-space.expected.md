@@ -1,0 +1,41 @@
+- heading "Team Space" [level=1]
+- paragraph: Only content explicitly published by members
+- button "Spaces and members"
+- navigation "Team Space":
+  - button "Files"
+  - button "Meeting notes"
+  - button "Tasks"
+  - button "Review"
+- button "Refresh"
+- text: This is an existing local space. For collaboration across networks, create a server project or join with an invitation.
+- button "Start a project"
+- region "Local simulation":
+  - strong: Local simulation
+  - text: Acting member
+  - combobox "Acting member":
+    - option "蓝天 · 产品" [selected]
+    - option "研发 · 研发"
+    - option "测试 · 测试"
+    - option "UI · UI"
+  - paragraph: Identity changes apply to this page only. Actions are saved to the local project.
+- text: Real progress
+- strong: 100%
+- meter
+- region "Task workflow":
+  - strong: Task workflow
+  - list:
+    - listitem: Product creates a task
+    - listitem: Design / Engineering claims or receives it
+    - listitem: Publish work for another member to review
+    - listitem: Accept to finish, or return for changes
+- text: Tasks
+- heading "1" [level=2]
+- button "New task"
+- article:
+  - strong: Ship the assembled Team Battle slice
+  - text: Completed
+  - paragraph: Exercise the durable weighted-task workflow through the browser.
+  - text: "Owner: 蓝天 Progress weight: 7 v4"
+- group: Activity
+- text: Private conversations never enter Team Space automatically
+- button "What is shared?"

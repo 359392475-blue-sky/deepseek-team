@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-31-team-battle-native-macos-application.md
+2026-08-31-team-battle-native-macos-application.md: 42316cf6e19d75e3bfefe3f59ce536669b3eef42
+2026-08-31-team-battle-native-macos-application.zh.md: 22463f9bbec20fbf736356927f3fd74b00ff7d5a

@@ -1,0 +1,24 @@
+# Private Team Battle Web layer. Apply after dsh-web-app and the host-side
+# Team Battle layer so both WebServer and the shared project domain exist.
+
+- id: ui-trajectory
+  disabled: true
+
+- id: directory-picker
+  disabled: true
+
+- insert:
+    - id: directory-picker-browse
+      name: '@deepseek-ai/dsh-host-directory-picker-browse'
+    - id: ui-directory-picker-browse
+      name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'
+
+    - id: team-battle-connector-http
+      name: '@deepseek-ai/dsh-experimental-team-battle-connector-http'
+      config:
+        path: /team-battle/codex
+        secretEnv: TEAM_BATTLE_CODEX_TOKEN
+        maxBodyBytes: 262144
+
+    - id: ui-team-battle
+      name: '@deepseek-ai/dsh-experimental-client-ui-team-battle'

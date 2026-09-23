@@ -1,0 +1,4 @@
+- button "Preview"
+- button "Send to my Codex"
+- button "Download file"
+- status: Receiver confirmed receipt · Test receiver inspected exact bytes

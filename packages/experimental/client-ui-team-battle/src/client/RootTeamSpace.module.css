@@ -1,0 +1,23 @@
+.entry {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 9px;
+  color: #1768ff;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.entry:hover { background: #edf3ff; }
+.entry:focus-visible { outline: 2px solid #1768ff; outline-offset: -2px; }
+.page {
+  position: absolute;
+  inset: 0;
+  outline: none;
+}

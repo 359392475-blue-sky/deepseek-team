@@ -1,0 +1,13 @@
+- navigation "Team Space":
+  - button "Tasks"
+  - button "Context"
+  - button "Artifacts"
+  - button "Activity"
+- text: Tasks
+- heading "1" [level=2]
+- button "New task"
+- article:
+  - strong: Ship the assembled Team Battle slice
+  - text: Completed
+  - paragraph: Exercise the durable weighted-task workflow through the browser.
+  - text: "Owner: 蓝天 Progress weight: 7 v4"
