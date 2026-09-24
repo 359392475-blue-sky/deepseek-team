@@ -1,9 +1,9 @@
 /** Regression tests for bilingual snapshots, corpus scope, and structure. */
 
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { globSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, sep } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   gitBlobHash,
@@ -30,6 +30,7 @@ import {
   translationPairSourcePredicate,
   translationStructureDiff,
   translationStructureSignature,
+  TRANSLATION_SCOPE_GLOB_EXCLUDES,
 } from './translation-pairing.ts'
 
 const fixturePairSource = (): boolean => true
@@ -315,6 +316,9 @@ describe('translation scope discovery', () => {
     'apps/cli/README.md',
     'future/subtree/readme.md',
     'packages/example/README.zh.md',
+    'packages/example/src/dist/README.md',
+    'docs/dist/README.zh.md',
+    'dist-source/README.i18n.yaml',
     'native/example/README.i18n.yaml',
     '.agents/notes/proposed/feature.md',
     'docs/guide.md',
@@ -336,11 +340,41 @@ describe('translation scope discovery', () => {
     'packages/example/node_modules/dependency/README.md',
     'packages/example/lib/README.md',
     'coverage/report/README.md',
+    'dist/macos/Team.app/Contents/Resources/runtime/README.md',
+    'dist/macos/Team.app/Contents/Resources/runtime/README.zh.md',
+    'dist/macos/Team.app/Contents/Resources/runtime/README.i18n.yaml',
     'python/sdk-runtime/src/deepseek_harness_runtime/runtime/deepseek-harness-sdk-runtime-macos-arm64/README.md',
     'python/sdk-runtime/src/deepseek_harness_runtime/runtime/node/README.md',
     'python/sdk-runtime/src/deepseek_harness_runtime/runtime/macos-arm64/office-skills/office-docx/SKILL.md',
   ])('excludes non-source or non-README path %s', (file) => {
     expect(isTranslationScopeFile(file)).toBe(false)
+  })
+
+  it('excludes root release artifacts during traversal without hiding nested source dist directories', () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-translation-discovery-'))
+    const sources = [
+      'packages/example/src/dist/README.md',
+      'docs/dist/README.zh.md',
+      'dist-source/README.i18n.yaml',
+    ]
+    const artifacts = [
+      'dist/macos/Team.app/Contents/Resources/runtime/README.md',
+      'dist/macos/Team.app/Contents/Resources/runtime/README.zh.md',
+      'dist/macos/Team.app/Contents/Resources/runtime/README.i18n.yaml',
+    ]
+    try {
+      for (const file of [...sources, ...artifacts]) {
+        mkdirSync(dirname(join(root, file)), { recursive: true })
+        writeFileSync(join(root, file), 'fixture\n')
+      }
+      const discovered = globSync(['**/*.md', '**/*.i18n.yaml'], {
+        cwd: root, exclude: TRANSLATION_SCOPE_GLOB_EXCLUDES,
+      }).map(file => file.split(sep).join('/'))
+      expect(discovered.sort()).toEqual(sources.toSorted())
+      expect(discovered.filter(isTranslationScopeFile).sort()).toEqual(sources.toSorted())
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })
 
