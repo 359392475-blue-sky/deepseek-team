@@ -50,6 +50,11 @@ fixture_sources=(
   apps/macos/Resources/AppIcon.svg
   apps/macos/Sources/App.swift
   native/landlock-run/src/lib.rs
+  native/system/Cargo.toml
+  native/system/packages/entry/src/main.c
+  native/system/packages/entry/src/index.ts
+  native/system/packages/darwin-arm64/package.json
+  native/system/scripts/build.ts
   packages/example/package/src/index.ts
   packages/example/package/src/lib/helper.ts
   packages/example/package/src/source-link-target-a.ts
@@ -83,6 +88,15 @@ excluded_outputs=(
   python/sdk-runtime/src/deepseek_harness_runtime/runtime/node/bin/node
   native/landlock-run/packages/linux-arm64/bin/addon.node
   native/landlock-run/target/release/runner
+  native/system/.claude/cache.json
+  native/system/.release/archive.tar
+  native/system/dist/system.node
+  native/system/target/release/runner
+  native/system/packages/darwin-arm64/bin/system.node
+  native/system/packages/entry/lib/flock.d.ts
+  native/system/packages/entry/lib/flock.js
+  native/system/packages/entry/lib/index.d.ts
+  native/system/packages/entry/lib/index.js
   vendor/example/lib/index.js
   website/.dist/index.html
   website/.generated/index.md
@@ -120,6 +134,11 @@ for relative in \
   packages/example/package/src/types/model.ts \
   python/sdk-runtime/src/deepseek_harness_runtime/runtime/platforms.json \
   native/landlock-run/packages/linux-arm64/package.json \
+  native/system/Cargo.toml \
+  native/system/packages/entry/src/main.c \
+  native/system/packages/entry/src/index.ts \
+  native/system/packages/darwin-arm64/package.json \
+  native/system/scripts/build.ts \
   snapshots/web/smoke/cordis.yml \
   apps/macos/scripts/source-manifest.sh \
   .gitignore \
@@ -144,6 +163,25 @@ awk -F '\t' '$2 == "symlink" && $3 ~ /^[0-7][0-7][0-7][0-7]$/ && $4 == "packages
   exit 1
 }
 bash "$manifest_script" verify "$repo" "$expected"
+
+for relative in "${excluded_outputs[@]}"; do
+  printf 'changed generated output\n' >> "$repo/$relative"
+done
+bash "$manifest_script" verify "$repo" "$expected"
+
+for relative in \
+  native/system/Cargo.toml \
+  native/system/packages/entry/src/main.c \
+  native/system/packages/entry/src/index.ts \
+  native/system/scripts/build.ts; do
+  printf 'changed native source\n' >> "$repo/$relative"
+  if bash "$manifest_script" verify "$repo" "$expected" >/dev/null 2>&1; then
+    echo "test:macos source manifest accepted stale $relative" >&2
+    exit 1
+  fi
+  bash "$manifest_script" write "$repo" "$expected"
+done
+cp "$expected" "$repo/dist/macos/DeepSeek Harness 团战版.app/Contents/Resources/SOURCE_MANIFEST.sha256"
 
 printf 'changed web source\n' >> "$repo/apps/web/src/main.ts"
 ci_skip_log="$fixture_root/ci-skip.log"

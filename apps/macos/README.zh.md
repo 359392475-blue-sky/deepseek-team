@@ -35,7 +35,7 @@ pnpm run test:macos
 pnpm run install:macos
 ```
 
-`build:macos` 会清理并构建 Harness、打包发布族、从 lockfile（锁定文件）部署生产依赖闭包、复制团战版私有运行时入口、嵌入 arm64 Node、隔离所有常规运行时文件的共享 inode（索引节点）、只裁剪已确认的外来或不受支持原生文件，并用 ad-hoc identity（临时签名身份）签署 `dist/macos/DeepSeek Harness 团战版.app`。Source manifest（源码清单）覆盖 CLI、Web 应用、macOS 外壳、packages、vendor、Python、native、patches、scripts、snapshots、website 以及必要的根构建与法律文件，同时排除生成产物。
+`build:macos` 会清理并构建 Harness、打包发布族、从 lockfile（锁定文件）部署生产依赖闭包、复制团战版私有运行时入口、嵌入 arm64 Node、隔离所有常规运行时文件的共享 inode（索引节点）、只裁剪已确认的外来或不受支持原生文件，并用 ad-hoc identity（临时签名身份）签署 `dist/macos/DeepSeek Harness 团战版.app`。Source manifest（源码清单）覆盖 CLI、Web 应用、macOS 外壳、packages、vendor、Python、native、patches、scripts、snapshots、website 以及必要的根构建与法律文件，同时排除生成产物。原生源码、清单和构建脚本仍在覆盖范围内；`native/system` 与 `native/landlock-run` 下的生成构建目录和包内 `bin`/`lib` 输出均被排除。
 
 `test:macos` 会验证源码新鲜度、Swift 行为、token 脱敏、运行时 inode 隔离、CLI 版本、四层团战 profile、团战 host（主机端）与 browser（浏览器端）产物、认证 HTTP 启动及页面中的团战客户端入口、原生架构、最低系统版本、关闭流程、裁剪结果和签名。
 

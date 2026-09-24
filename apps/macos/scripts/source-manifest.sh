@@ -115,7 +115,7 @@ def is_generated_directory(relative: str) -> bool:
         return True
     if len(parts) >= 3 and parts[0] == "vendor" and parts[2] in {"lib", "types"}:
         return True
-    if len(parts) >= 3 and parts[:2] == ["native", "landlock-run"] and parts[2] in {
+    if len(parts) >= 3 and parts[0] == "native" and parts[1] in {"landlock-run", "system"} and parts[2] in {
         ".claude",
         ".release",
         "dist",
@@ -124,7 +124,9 @@ def is_generated_directory(relative: str) -> bool:
         return True
     if (
         len(parts) >= 5
-        and parts[:3] == ["native", "landlock-run", "packages"]
+        and parts[0] == "native"
+        and parts[1] in {"landlock-run", "system"}
+        and parts[2] == "packages"
         and parts[4] in {"bin", "lib"}
     ):
         return True

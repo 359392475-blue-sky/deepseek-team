@@ -35,7 +35,7 @@ pnpm run test:macos
 pnpm run install:macos
 ```
 
-`build:macos` cleans and builds Harness, packs the release families, deploys the locked production dependency closure, copies the private Team Battle runtime entry, embeds arm64 Node, isolates every regular runtime file from shared inodes, prunes only identified foreign or unsupported native payloads, and ad-hoc signs the result at `dist/macos/DeepSeek Harness 团战版.app`. The source manifest covers the CLI, Web app, macOS wrapper, packages, vendored sources, Python, native sources, patches, scripts, snapshots, website, and required root build and legal files while excluding generated outputs.
+`build:macos` cleans and builds Harness, packs the release families, deploys the locked production dependency closure, copies the private Team Battle runtime entry, embeds arm64 Node, isolates every regular runtime file from shared inodes, prunes only identified foreign or unsupported native payloads, and ad-hoc signs the result at `dist/macos/DeepSeek Harness 团战版.app`. The source manifest covers the CLI, Web app, macOS wrapper, packages, vendored sources, Python, native sources, patches, scripts, snapshots, website, and required root build and legal files while excluding generated outputs. Native sources, manifests, and build scripts remain covered; generated build directories and package `bin`/`lib` outputs under `native/system` and `native/landlock-run` are excluded.
 
 `test:macos` validates source freshness, Swift behavior, token redaction, runtime inode isolation, CLI version, the four Team Battle profile layers, Team host and browser artifacts, an authenticated HTTP boot whose page includes the Team Battle client entry, native architectures, deployment targets, shutdown, pruning, and signatures.
 
