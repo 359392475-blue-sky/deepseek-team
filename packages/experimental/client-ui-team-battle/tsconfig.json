@@ -45,13 +45,16 @@
       "path": "../../typert/protocol"
     },
     {
-      "path": "../../runtime-diagnostics/invariants"
-    },
-    {
       "path": "../../client/ui-layout"
     },
     {
       "path": "../../client/ui-sidebar"
+    },
+    {
+      "path": "../../api/workspace-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../../client/ui-workspace"
     }
   ]
 }

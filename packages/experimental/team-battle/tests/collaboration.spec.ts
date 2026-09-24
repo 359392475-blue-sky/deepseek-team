@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import type { CredentialKey, CredentialRecord } from '@deepseek-ai/dsh-credentials'
+import { WorkspaceId } from '@deepseek-ai/dsh-workspace'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import Storage from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import TeamBattleService, {
   TeamBattleMemberId, type AcceptTeamInviteRequest, type AuthenticatedTeamRequest,
-  type Config, type CreateHostedTeamRequest, type TeamBattleNetworkTransport,
-  type TeamBattleProjectId, type TeamBattleSpaceView, type TeamBattleTeamSummary, type TeamBattleView,
+  type Config, type CreateHostedTeamRequest, type TeamBattleNetworkTransport, type TeamBattleNetworkRequest,
+  TeamBattleProjectId, type TeamBattleSpaceView, type TeamBattleTeamSummary, type TeamBattleView,
 } from '../src/index.ts'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 
@@ -24,7 +25,9 @@ async function host(pool = new MemoryMediaPool(), records = new Map<CredentialKe
   contexts.push(ctx)
   const noOp = (): void => {}
   ctx.provide('typert', { lookups: { configure: () => noOp, register: () => noOp }, contexts: { configureHost: () => noOp } } as never)
+  const resolveCredential = vi.fn(async (): Promise<{ value: string; source: string } | undefined> => ({ value: 'server-create-permission', source: 'store' }))
   ctx.provide('credentials', {
+    resolve: resolveCredential,
     readRecord: async (key: CredentialKey) => records.get(key),
     modifyRecord: async (key: CredentialKey, update: (previous: CredentialRecord | undefined) => Promise<CredentialRecord | undefined>) => {
       const value = await update(records.get(key)); if (value !== undefined) records.set(key, value); return value
@@ -37,16 +40,17 @@ async function host(pool = new MemoryMediaPool(), records = new Map<CredentialKe
   ctx.storage.mount('domain', domains)
   ctx.provide('storageDomain', domains)
   await ctx.plugin(TeamBattleService, config)
-  return { ctx, service: ctx.teamBattle, pool, records }
+  return { ctx, service: ctx.teamBattle, pool, records, resolveCredential }
 }
 
 function attachClient(client: TeamBattleService, server: TeamBattleService) {
-  const lostResponses = { create: 0, join: 0, unavailableCalls: 0 }
+  const lostResponses = { create: 0, join: 0, unavailableCalls: 0, calls: [] as TeamBattleNetworkRequest[] }
   const transport: TeamBattleNetworkTransport = {
     status: () => ({ running: false, origins: [] }),
     start: async () => ({ running: true, host: '127.0.0.1', port: 2345, origins: ['http://127.0.0.1:2345'] }),
     stop: async () => {},
     request: async (request) => {
+      lostResponses.calls.push(request)
       expect(request.origin).toBe('https://team.example.test/shared')
       switch (request.path) {
         case 'create': {
@@ -200,6 +204,83 @@ describe('authenticated multi-team collaboration', () => {
     await expect(colleague.service.readFile({ teamId: team.id, fileId: file.id })).rejects.toThrow('revoked')
   })
 
+  it('creates with Host-configured credentials without exposing them or accepting a client destination override', async () => {
+    const server = await host()
+    const owner = await host(new MemoryMediaPool(), new Map(), Object.assign({}, CONFIG, {
+      sharedServer: { url: 'https://team.example.test/shared/', accessTokenRef: 'TEAM_CREATE_TOKEN' },
+    }))
+    const transport = attachClient(owner.service, server.service)
+    const team = await owner.service.createTeam(TEAM)
+    expect(transport.calls[0]).toMatchObject({ origin: 'https://team.example.test/shared', path: 'create', bearer: 'server-create-permission' })
+    expect(team.mode).toBe('joined')
+    expect(JSON.stringify(await owner.service.teams())).not.toContain('server-create-permission')
+    expect(JSON.stringify([...owner.pool.media.values()])).not.toContain('server-create-permission')
+    expect(JSON.stringify([...owner.records.values()])).not.toContain('server-create-permission')
+    expect((await owner.service.teams()).teams.filter(item => item.mode === 'hosted')).toHaveLength(0)
+    await expect(owner.service.createTeam({ ...TEAM, serverUrl: 'https://other.example.test' })).rejects.toThrow('cannot be overridden')
+    await expect(owner.service.createTeam({ ...TEAM, serverAccessToken: '123' })).rejects.toThrow('cannot be overridden')
+    expect(transport.calls).toHaveLength(1)
+    owner.resolveCredential.mockResolvedValueOnce(undefined)
+    await expect(owner.service.createTeam({ ...TEAM, name: 'Missing permission' })).rejects.toMatchObject({ code: 'team-battle/server-auth-required' })
+    expect(transport.calls).toHaveLength(1)
+  })
+
+  it('admits fragment invitations only for the configured server before generating credentials', async () => {
+    const server = await host(); const owner = await host()
+    const peer = await host(new MemoryMediaPool(), new Map(), Object.assign({}, CONFIG, {
+      sharedServer: { url: 'https://team.example.test/shared', accessTokenRef: 'TEAM_CREATE_TOKEN' },
+    }))
+    attachClient(owner.service, server.service)
+    const transport = attachClient(peer.service, server.service)
+    const team = await owner.service.createTeam({ ...TEAM, serverUrl: 'https://team.example.test/shared', serverAccessToken: 'create' })
+    const invite = await owner.service.createInvite({ teamId: team.id, memberName: 'Peer', memberRole: 'Test' })
+    const url = new URL(invite.inviteCode)
+    expect(url.protocol).toBe('https:')
+    expect(url.pathname).toBe('/shared/')
+    expect(url.search).toBe('')
+    expect(url.hash).toContain(invite.token)
+    const other = new URL(url); other.hostname = 'other.example.test'
+    await expect(peer.service.joinRemote({ inviteCode: other.href })).rejects.toThrow('different configured team server')
+    for (const invalid of [url.href + '&token=duplicate', url.href.replace('/#', '/?token=leaked#'),
+      url.href.replace('https://team.example.test/shared/', 'http://169.254.169.254/'),
+      url.href.replace('/shared/', '/shared/../private/'), url.href.replace('https:', 'file:')]) {
+      await expect(peer.service.joinRemote({ inviteCode: invalid })).rejects.toThrow()
+    }
+    expect(transport.calls).toHaveLength(0)
+    expect(peer.records.size).toBe(0)
+    const joined = await peer.service.joinRemote({ inviteCode: `  ${url.href}  ` })
+    expect(joined.localMemberId).toBe(invite.memberId)
+    expect(transport.calls[0]?.origin).not.toContain('#')
+    expect(transport.calls[0]?.origin).not.toContain(invite.token)
+    const second = await owner.service.createInvite({ teamId: team.id, memberName: 'Legacy', memberRole: 'Test' })
+    const legacy = new URL('dsh-team://join')
+    legacy.search = new URLSearchParams({ server: 'https://team.example.test/shared', team: team.id, token: second.token }).toString()
+    const legacyPeer = await host(); attachClient(legacyPeer.service, server.service)
+    expect(await legacyPeer.service.joinRemote({ inviteCode: legacy.href })).toMatchObject({ localMemberId: second.memberId })
+  })
+
+  it('persists explicit local workspace associations without sharing paths or admitting unknown workspaces', async () => {
+    const first = await host()
+    const workspaceId = WorkspaceId('local-project')
+    const registry = { get: vi.fn((id: string) => id === workspaceId ? { id: workspaceId, path: '/private/local-project' } : undefined) }
+    first.ctx.provide('workspaceRegistry', registry as never)
+    const team = await first.service.createTeam(TEAM)
+    const other = await first.service.createTeam({ ...TEAM, name: 'Another project' })
+    expect(await first.service.workspaceLinks()).toEqual([])
+    await expect(first.service.bindWorkspace({ teamId: team.id, workspaceId: WorkspaceId('missing') })).rejects.toThrow('not registered')
+    await expect(first.service.bindWorkspace({ teamId: TeamBattleProjectId('unknown'), workspaceId })).rejects.toThrow('not found')
+    expect(await first.service.bindWorkspace({ teamId: team.id, workspaceId })).toEqual([{ teamId: team.id, workspaceId }])
+    expect(await first.service.bindWorkspace({ teamId: other.id, workspaceId })).toEqual([{ teamId: other.id, workspaceId }])
+    expect(JSON.stringify(await first.service.summary({ teamId: other.id }))).not.toContain(workspaceId)
+    expect(JSON.stringify(first.pool.media.get('team_battle_workspace_links')!.global)).not.toContain('/private/')
+    await first.ctx.fiber.dispose()
+    const reopened = await host(first.pool)
+    reopened.ctx.provide('workspaceRegistry', registry as never)
+    expect(await reopened.service.workspaceLinks()).toEqual([{ teamId: other.id, workspaceId }])
+    registry.get.mockReturnValue(undefined)
+    expect(await reopened.service.workspaceLinks()).toEqual([])
+  })
+
   it('recovers lost creation and join responses without duplicate teams or member identities', async () => {
     const server = await host(); const owner = await host(); const colleague = await host()
     const ownerReplies = attachClient(owner.service, server.service)
@@ -271,7 +352,7 @@ describe('authenticated multi-team collaboration', () => {
     expect((await reopened.service.view({ teamId: team.id })).localMemberId).toBe(replacement.memberId)
   })
 
-  it('does not replace active access, owner identity, another server, or an unreachable connection', async () => {
+  it('reopens live active membership without consuming invitations or replacing identity, and rejects another server or an unreachable connection', async () => {
     const server = await host(); const owner = await host(); const colleague = await host()
     attachClient(owner.service, server.service)
     const replies = attachClient(colleague.service, server.service)
@@ -279,10 +360,22 @@ describe('authenticated multi-team collaboration', () => {
     const firstInvite = await owner.service.createInvite({ teamId: team.id, memberName: 'Peer', memberRole: 'Test' })
     const previous = await colleague.service.joinRemote({ inviteCode: firstInvite.inviteCode })
     const replacement = await owner.service.createInvite({ teamId: team.id, memberName: 'Other', memberRole: 'Test' })
-    await expect(colleague.service.joinRemote({ inviteCode: replacement.inviteCode })).rejects.toThrow('active access')
-    await expect(owner.service.joinRemote({ inviteCode: replacement.inviteCode })).rejects.toThrow('owner cannot replace')
+    replies.calls.length = 0
+    await expect(colleague.service.joinRemote({ inviteCode: firstInvite.inviteCode })).resolves.toMatchObject({
+      localMemberId: previous.localMemberId,
+    })
+    await expect(colleague.service.joinRemote({ inviteCode: replacement.inviteCode })).resolves.toMatchObject({
+      localMemberId: previous.localMemberId,
+    })
+    await expect(owner.service.joinRemote({ inviteCode: replacement.inviteCode })).resolves.toMatchObject({
+      localMemberId: team.ownerMemberId,
+    })
+    expect(replies.calls.map(request => request.path)).toEqual(['call', 'call'])
+    expect(replies.calls.every(request => (request.body as AuthenticatedTeamRequest).method === 'summary')).toBe(true)
+    expect((await owner.service.summary({ teamId: team.id })).invites.find(value => value.id === replacement.id)!.status).toBe('pending')
+    expect(colleague.records.size).toBe(1)
     const anotherServer = new URL(replacement.inviteCode)
-    anotherServer.searchParams.set('server', 'https://other.example.test')
+    anotherServer.hostname = 'other.example.test'
     await expect(colleague.service.joinRemote({ inviteCode: anotherServer.href })).rejects.toThrow('different server')
     await owner.service.revokeMember({ teamId: team.id, memberId: previous.localMemberId })
     replies.unavailableCalls = 1
@@ -290,6 +383,33 @@ describe('authenticated multi-team collaboration', () => {
     expect((await colleague.service.teams()).teams.find(value => value.id === team.id)!.localMemberId).toBe(previous.localMemberId)
     expect((await owner.service.summary({ teamId: team.id })).invites.find(value => value.id === replacement.id)!.status).toBe('pending')
     expect(colleague.records.size).toBe(1)
+  })
+
+  it('uses existing live membership when a retained invitation expires or is revoked, and fails if its local credential is missing', async () => {
+    const server = await host(); const owner = await host(); const colleague = await host()
+    attachClient(owner.service, server.service)
+    attachClient(colleague.service, server.service)
+    const team = await owner.service.createTeam({ ...TEAM, serverUrl: 'https://team.example.test/shared', serverAccessToken: 'create' })
+    const invite = await owner.service.createInvite({ teamId: team.id, memberName: 'Peer', memberRole: 'Test', expiresInHours: 1 })
+    const previous = await colleague.service.joinRemote({ inviteCode: invite.inviteCode })
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 2 * 3_600_000)
+    await expect(colleague.service.joinRemote({ inviteCode: invite.inviteCode })).resolves.toMatchObject({
+      localMemberId: previous.localMemberId,
+    })
+    await owner.service.revokeInvite({ teamId: team.id, inviteId: invite.id })
+    await expect(colleague.service.joinRemote({ inviteCode: invite.inviteCode })).resolves.toMatchObject({
+      localMemberId: previous.localMemberId,
+    })
+    expect((await colleague.service.view({ teamId: team.id })).members).toHaveLength(2)
+    expect(colleague.records.size).toBe(1)
+    colleague.records.clear()
+    await expect(colleague.service.joinRemote({ inviteCode: invite.inviteCode })).rejects.toThrow('credential is missing')
+    expect(colleague.records.size).toBe(0)
+    for (const [key, record] of owner.records) {
+      if (record.kind === 'api-key') owner.records.set(key, { ...record, key: 'x'.repeat(43) })
+    }
+    await expect(owner.service.joinRemote({ inviteCode: invite.inviteCode })).rejects.toThrow('owner cannot replace')
+    expect(owner.records.size).toBe(1)
   })
 
   it('drains an admitted authenticated write before disposal and preserves revocation on reopen', async () => {

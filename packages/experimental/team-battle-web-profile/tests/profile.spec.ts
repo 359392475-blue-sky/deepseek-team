@@ -21,7 +21,8 @@ describe('Team Battle Web profile bundle', () => {
     const parsed = yaml.load(
       readFileSync(resolve(root, manifest.dsh!.bundle!.patch!), 'utf8'),
       { schema: entryListSchema },
-    ) as { id?: string; disabled?: boolean; insert?: { id?: string; name?: string }[] }[]
+    ) as { id?: string; disabled?: boolean; config?: Record<string, unknown>; insert?: { id?: string; name?: string }[] }[]
+    expect(parsed.some(patch => patch.id === 'team-battle')).toBe(false)
     expect(parsed.find(patch => patch.id === 'ui-trajectory')).toEqual({ id: 'ui-trajectory', disabled: true })
     expect(parsed.find(patch => patch.id === 'directory-picker')).toEqual({ id: 'directory-picker', disabled: true })
     expect(parsed.flatMap(patch => patch.insert ?? []).map(entry => entry.id)).toEqual([

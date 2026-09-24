@@ -38,6 +38,8 @@ pnpm dsh --profile team-battle
 
 原有本机空间显示从 `DSH_HOME` 解析的 JSON 存储目录，服务器项目显示连接的服务器地址。
 
+项目创建使用本 Host 层的 `sharedServer` 配置，默认地址为 `https://lowpower.me/team-battle`，凭证引用为 `TEAM_BATTLE_SERVER_ACCESS_TOKEN`。实际值保存在发起者 Host 的凭证提供方。后续 patch 提供 `config` 时，Cordis 会替换整个配置对象；覆盖配置时必须保留必需的项目字段和成员列表，不能仅提供 `sharedServer`。Web 层不改写 Host 条目。
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -47,6 +49,8 @@ pnpm dsh --profile team-battle
 <summary>实现细节</summary>
 
 本包没有运行时 plugin（插件）主体。[`cordis.patch.yml`](cordis.patch.yml) 在 `dsh-base` 之后插入 `@deepseek-ai/dsh-experimental-team-battle`；`dsh-base` 提供存储枢纽、JSON 后端和 domain form（域数据形态）。团战 service 拥有成员、任务、Context、产物、验收、活动、Query 奖励和项目进度语义。
+
+本包不发布运行时 invariant（不变量）companion（配套插件），因为此 bundle（配置包）仅包含静态组合，不拥有运行时状态；配置中的服务负责各自的运行时关系。
 
 </details>
 

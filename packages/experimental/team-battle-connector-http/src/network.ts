@@ -4,6 +4,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { networkInterfaces } from 'node:os'
 import {
   TeamBattleError,
+  TeamBattleNameConflictError,
   TeamBattleServerAuthError,
   TeamBattleProjectId,
   type TeamBattleHostingStatus,
@@ -12,6 +13,7 @@ import {
 } from '@deepseek-ai/dsh-experimental-team-battle'
 import { readBoundedUtf8Body, TeamBattleHttpError } from './body.ts'
 import { normalizeTeamServerUrl, validateTeamBindHost } from './network-url.ts'
+import { renderTeamInvitationPage, teamInvitationPagePolicy } from './invitation-page.ts'
 
 /** Independently configurable transfer limits for member-to-host operations. */
 export interface TeamNetworkLimits {
@@ -22,6 +24,11 @@ export interface TeamNetworkLimits {
 }
 
 type TeamNetworkDomain = Pick<TeamBattleService, 'acceptInvite' | 'dispatchAuthenticated' | 'createHostedTeam'>
+
+function isNameConflict(value: unknown): boolean {
+  return typeof value === 'object' && value !== null && 'code' in value
+    && value.code === 'team-battle/name-conflict'
+}
 
 function jsonResponse(response: ServerResponse, status: number, value: unknown): void {
   const body = JSON.stringify(value)
@@ -95,17 +102,22 @@ export class TeamNetwork implements TeamBattleNetworkTransport {
   private readonly inbound = new Set<Promise<void>>()
   private readonly outbound = new Map<AbortController, Promise<unknown>>()
   private disposed = false
+  private readonly invitationPage: string
 
   /**
    * @param domain - authenticated Team operations without private application services.
    * @param limits - validated transfer and timeout limits.
    * @param authorizeCreation - deployment credential verifier; omission disables remote project creation.
+   * @param invitationDownloadUrl - optional HTTPS page for obtaining a compatible Team client.
    */
   constructor(
     private readonly domain: TeamNetworkDomain,
     private readonly limits: TeamNetworkLimits,
     private readonly authorizeCreation?: (token: string) => Promise<boolean>,
-  ) {}
+    invitationDownloadUrl?: string,
+  ) {
+    this.invitationPage = renderTeamInvitationPage(invitationDownloadUrl)
+  }
 
   /** @returns current listener addresses without member credentials. */
   status(): TeamBattleHostingStatus {
@@ -206,6 +218,18 @@ export class TeamNetwork implements TeamBattleNetworkTransport {
 
   private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     try {
+      if (request.url === '/' && (request.method === 'GET' || request.method === 'HEAD')) {
+        response.writeHead(200, {
+          'content-type': 'text/html; charset=utf-8',
+          'content-length': String(Buffer.byteLength(this.invitationPage)),
+          'cache-control': 'no-store',
+          'content-security-policy': teamInvitationPagePolicy,
+          'referrer-policy': 'no-referrer',
+          'x-content-type-options': 'nosniff',
+        })
+        response.end(request.method === 'HEAD' ? undefined : this.invitationPage)
+        return
+      }
       if (request.url !== '/create' && request.url !== '/join' && request.url !== '/call') {
         jsonResponse(response, 404, { error: 'not found' })
         return
@@ -262,6 +286,8 @@ export class TeamNetwork implements TeamBattleNetworkTransport {
       if (response.destroyed || response.writableEnded) return
       if (error instanceof TeamBattleHttpError) {
         jsonResponse(response, error.status, { error: error.message })
+      } else if (isNameConflict(error)) {
+        jsonResponse(response, 409, { error: 'Team file-space name conflict', code: 'team-battle/name-conflict' })
       } else if (error instanceof TeamBattleError) {
         jsonResponse(response, 403, { error: 'Team request rejected', code: error.code })
       } else {
@@ -291,7 +317,7 @@ export class TeamNetwork implements TeamBattleNetworkTransport {
         redirect: 'error',
         signal: controller.signal,
       })
-      if (!response.ok && response.status !== 403) {
+      if (!response.ok && response.status !== 403 && response.status !== 409) {
         await response.body?.cancel()
         if (request.path === 'create' && response.status === 401) throw new TeamBattleServerAuthError()
         throw new Error(`Team server rejected the request (HTTP ${String(response.status)})`)
@@ -313,7 +339,8 @@ export class TeamNetwork implements TeamBattleNetworkTransport {
       }
       const result = decodeJson(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks, size)))
       if (!response.ok) {
-        if (typeof result === 'object' && result !== null && 'code' in result
+        if (response.status === 409 && isNameConflict(result)) throw new TeamBattleNameConflictError()
+        if (response.status === 403 && typeof result === 'object' && result !== null && 'code' in result
           && result.code === 'TEAM_BATTLE_ACCESS_DENIED') {
           throw new TeamBattleError('member credential is invalid, revoked, or expired', 'TEAM_BATTLE_ACCESS_DENIED')
         }
@@ -322,6 +349,7 @@ export class TeamNetwork implements TeamBattleNetworkTransport {
       return result
     } catch (error) {
       if (controller.signal.aborted) throw new Error('Team request was interrupted; check the team state before retrying')
+      if (isNameConflict(error)) throw new TeamBattleNameConflictError()
       if (error instanceof TeamBattleServerAuthError) throw error
       if (error instanceof TeamBattleError && error.code === 'TEAM_BATTLE_ACCESS_DENIED') throw error
       if (error instanceof Error && /^Team (server|request|response)/.test(error.message)) throw error

@@ -191,6 +191,10 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   // The CPython side ships as source .py files, published as-is rather than built.
   '@deepseek-ai/dsh-experimental-ptc-runtime-python': ['py/**/*.py'],
   '@deepseek-ai/dsh-experimental-speech-to-text-sensevoice': ['runtime/assets.json'],
+  // The standalone Team server copies this owned profile into its Harness home.
+  '@deepseek-ai/dsh-experimental-team-battle-connector-http': [
+    'deploy/profile/package.json', 'deploy/profile/cordis.patch.yml',
+  ],
   // The isolated Node bootstrap is a separately launched bundle.
   '@deepseek-ai/dsh-ptc-runtime-node': ['lib/process.js'],
   // The Host entry starts its sibling Worker by URL rather than a package export.

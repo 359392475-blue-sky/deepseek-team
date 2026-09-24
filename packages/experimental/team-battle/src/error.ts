@@ -25,11 +25,20 @@ export class TeamBattleError extends Error {
   }
 }
 
+/** A sibling already has this file or folder name; published bytes remain unchanged. */
+export class TeamBattleNameConflictError extends RemoteError<'team-battle/name-conflict'> {
+  constructor() {
+    super('team-battle/name-conflict',
+      'An item with this name already exists in the folder. Choose another name or create a version folder before publishing.',
+      { httpStatus: 409 })
+  }
+}
+
 /** Creation authorization failed; diagnostics contain no credentials or server response content. */
 export class TeamBattleServerAuthError extends RemoteError<'team-battle/server-auth-required'> {
   constructor() {
     super('team-battle/server-auth-required',
-      'Team server refused project creation. Check the server address and ask its administrator for the current creation code.',
+      'Team project creation is unavailable. Ask the administrator to restore the configured Team service connection.',
       { httpStatus: 401 })
   }
 }

@@ -14,6 +14,9 @@ import {
   IconBrowseOutlineRegular,
   IconChevronDownOutlineRegular,
   IconChevronUpOutlineRegular,
+  Checkbox,
+  FileTypeIcon,
+  IconSendOutlineRegular,
   IconCloseOutlineRegular,
   IconDownloadOutlineRegular,
   IconEllipsisOutlineRegular,
@@ -26,13 +29,6 @@ import type { LiveProjectionState } from './useLiveProjection.ts'
 import type { TeamBattleLiveState } from './useTeamBattleLive.ts'
 import { NS } from './locales.ts'
 import css from './TeamSpaceView.module.css'
-import documentIcon from '../assets/file-document.png'
-import imageIcon from '../assets/file-image.png'
-import codeIcon from '../assets/file-code.png'
-import folderIcon from '../assets/file-folder.png'
-import previewIcon from '../assets/action-preview.png'
-import sendIcon from '../assets/action-send.png'
-
 type SpaceItem = { readonly kind: 'file'; readonly item: TeamBattleFileView } | { readonly kind: 'folder'; readonly item: TeamBattleFolderView }
 type Translate = PropsLocale<typeof NS>['t']
 type ItemAction = { readonly entry: SpaceItem; readonly action: 'rename' | 'delete' }
@@ -145,6 +141,7 @@ function UploadDialog({ open, close, parentId, actions, live, selected, projectN
   const submit = async (event: FormEvent): Promise<void> => {
     event.preventDefault()
     if (file === null || live.view === null || busy) return
+    if ([...live.view.folders, ...live.view.files].some(item => item.parentId === parentId && item.name === name.trim())) { setError(t('files.nameConflict')); return }
     if (file.size > live.view.limits.maxFileBytes) { setError(t('files.tooLarge', { size: formatBytes(live.view.limits.maxFileBytes, t) })); return }
     setReading(true)
     setError(null)
@@ -170,8 +167,9 @@ function UploadDialog({ open, close, parentId, actions, live, selected, projectN
       <strong>{t('journey.publishDestination', { name: projectName })}</strong><p className={css.formHint}>{t('journey.publishNotice')}</p>
       <label>{t('files.chooseFile')}<input key={open ? 'open' : 'closed'} type="file" required disabled={busy} onChange={(event) => { const chosen = event.target.files?.[0] ?? null; setFile(chosen); setName(chosen?.name ?? ''); setError(null) }} /></label>
       <p className={css.formHint}>{t('files.uploadHint', { size: formatBytes(live.view?.limits.maxFileBytes ?? 0, t) })}</p>
-      <label>{t('files.name')}<input required value={name} onChange={(event) => { setName(event.target.value) }} /></label>
+      <label>{t('files.name')}<input required value={name} onChange={(event) => { setName(event.target.value); setError(null) }} /></label>
       <label>{t('files.versionLabel')}<input required value={versionLabel} onChange={(event) => { setVersionLabel(event.target.value) }} /></label>
+      <p className={css.formHint}>{t('files.versionHint')}</p>
       <label>{t('files.source')}<input value={source} placeholder={t('files.sourcePlaceholder')} onChange={(event) => { setSource(event.target.value) }} /></label>
       <label>{t('files.note')}<textarea value={note} onChange={(event) => { setNote(event.target.value) }} /></label>
       {(error ?? live.error) !== null && <p className={css.formError} role="alert">{error ?? live.error}</p>}
@@ -183,7 +181,7 @@ function UploadDialog({ open, close, parentId, actions, live, selected, projectN
 /**
  * Render hierarchical shared files and their explicit publication and delivery actions.
  * @param props - current project, file projection, Remote calls, and header dialog state.
- * @returns sortable files, provenance detail, and upload, preview, and edit dialogs.
+ * @returns sortable files, source and version details, and upload, preview, and edit dialogs.
  */
 export function TeamSpaceFiles({
   allowCodexDelivery, actions, project, live, projectLive, t, publishing, setPublishing, creatingFolder, setCreatingFolder, requestedFile,
@@ -272,13 +270,13 @@ export function TeamSpaceFiles({
             <col className={css.checkColumn} /><col /><col className={css.publisherColumn} />
             <col className={css.timeColumn} /><col className={css.statusColumn} /><col className={css.menuColumn} />
           </colgroup>
-          <thead><tr><th><input type="checkbox" aria-label={t('files.selectAll')} checked={entries.length > 0 && entries.every(entry => checked.has(entry.item.id))} onChange={(event) => { setChecked(event.target.checked ? new Set(entries.map(entry => entry.item.id)) : new Set()) }} /></th><th aria-sort={sort.field === 'name' ? (sort.ascending ? 'ascending' : 'descending') : 'none'}><button type="button" onClick={() => { toggleSort('name') }}>{t('files.name')} {sort.field === 'name' && sort.ascending ? <IconChevronUpOutlineRegular size={12} /> : <IconChevronDownOutlineRegular size={12} />}</button></th><th>{t('files.publisher')}</th><th aria-sort={sort.field === 'updatedAt' ? (sort.ascending ? 'ascending' : 'descending') : 'none'}><button type="button" onClick={() => { toggleSort('updatedAt') }}>{t('files.updatedAt')} {sort.field === 'updatedAt' && sort.ascending ? <IconChevronUpOutlineRegular size={12} /> : <IconChevronDownOutlineRegular size={12} />}</button></th><th>{t('files.status')}</th><th /></tr></thead>
+          <thead><tr><th><Checkbox className={css.checkLabel} label={t('files.selectAll')} checked={entries.length > 0 && entries.every(entry => checked.has(entry.item.id))} onChange={(checked) => { setChecked(checked ? new Set(entries.map(entry => entry.item.id)) : new Set()) }} /></th><th aria-sort={sort.field === 'name' ? (sort.ascending ? 'ascending' : 'descending') : 'none'}><button type="button" onClick={() => { toggleSort('name') }}>{t('files.name')} {sort.field === 'name' && sort.ascending ? <IconChevronUpOutlineRegular size={12} /> : <IconChevronDownOutlineRegular size={12} />}</button></th><th>{t('files.publisher')}</th><th aria-sort={sort.field === 'updatedAt' ? (sort.ascending ? 'ascending' : 'descending') : 'none'}><button type="button" onClick={() => { toggleSort('updatedAt') }}>{t('files.updatedAt')} {sort.field === 'updatedAt' && sort.ascending ? <IconChevronUpOutlineRegular size={12} /> : <IconChevronDownOutlineRegular size={12} />}</button></th><th>{t('files.status')}</th><th /></tr></thead>
           <tbody>{entries.map((entry) => {
             const { item, kind } = entry
             const review = kind === 'file' ? entry.item.review?.status : undefined
             return <tr key={item.id} data-selected={kind === 'file' && selected?.id === item.id ? '' : undefined}>
-              <td><input type="checkbox" aria-label={t('files.select', { name: item.name })} checked={checked.has(item.id)} onChange={(event) => { setChecked((previous) => { const next = new Set(previous); if (event.target.checked) next.add(item.id); else next.delete(item.id); return next }); if (kind === 'file') setSelectedId(entry.item.id) }} /></td>
-              <td><button className={css.fileName} type="button" onClick={() => { if (kind === 'folder') navigate(entry.item.id); else setSelectedId(entry.item.id) }}>{kind === 'folder' ? <img className={css.fileIcon} src={folderIcon} alt="" /> : <img className={css.fileIcon} src={entry.item.mediaType.startsWith('image/') ? imageIcon : /(?:json|javascript|typescript|html)/u.test(entry.item.mediaType) ? codeIcon : documentIcon} alt="" />}<span>{item.name}</span></button></td>
+              <td><Checkbox className={css.checkLabel} label={t('files.select', { name: item.name })} checked={checked.has(item.id)} onChange={(checked) => { setChecked((previous) => { const next = new Set(previous); if (checked) next.add(item.id); else next.delete(item.id); return next }); if (kind === 'file') setSelectedId(entry.item.id) }} /></td>
+              <td><button className={css.fileName} type="button" onClick={() => { if (kind === 'folder') navigate(entry.item.id); else setSelectedId(entry.item.id) }}>{kind === 'folder' ? <IconFolderCloseRegular size={26} /> : <FileTypeIcon path={item.name} size={28} />}<span>{item.name}</span></button></td>
               <td>{memberName(item.createdByMemberId)}</td>
               <td><time dateTime={new Date(item.updatedAt).toISOString()}>{formatTime(item.updatedAt)}</time></td>
               <td>{kind === 'folder' ? <span className={css.dash}>–</span> : <span className={css.fileStatus}><i data-status={review === 'pending' ? 'idle' : review === 'rejected' ? 'failed' : 'online'} />{memberName(item.createdByMemberId)} {review === undefined ? t('files.published') : t(`artifact.${review}`)}</span>}</td>
@@ -294,7 +292,7 @@ export function TeamSpaceFiles({
       <div className={css.thumbnail}>{content.content !== null ? <Preview content={content.content} t={t} /> : content.error !== null ? <div className={css.previewError}><span role="alert">{content.error}</span><button type="button" onClick={content.refresh}>{t('files.retryPreview')}</button></div> : <span>{t('common.loading')}</span>}</div>
       <dl className={css.fileMetadata}><div><dt>{t('files.version')}</dt><dd>{selected.versionLabel}</dd></div><div><dt>{t('files.publisher')}</dt><dd>{memberName(selected.createdByMemberId)}</dd></div><div><dt>{t('files.publishedAt')}</dt><dd>{formatTime(selected.createdAt)}</dd></div><div><dt>{t('files.source')}</dt><dd>{selected.source}</dd></div></dl>
       <div className={css.fileNote}><span>{t('files.note')}</span><p>{selected.note || t('files.noNote')}</p></div>
-      <div className={css.detailActions}><button type="button" disabled={content.content === null} onClick={() => { setPreviewOpen(true) }}><img className={css.actionIcon} src={previewIcon} alt="" />{t('files.preview')}</button>{allowCodexDelivery && <button type="button" disabled={pending || delivery?.status === 'queued'} onClick={() => { void live.mutate(() => actions.sendFile({ fileId: selected.id, expectedRevision: selected.revision })) }}><img className={css.actionIcon} src={sendIcon} alt="" />{t('files.send')}</button>}</div>
+      <div className={css.detailActions}><button type="button" disabled={content.content === null} onClick={() => { setPreviewOpen(true) }}><IconBrowseOutlineRegular size={20} />{t('files.preview')}</button>{allowCodexDelivery && <button type="button" disabled={pending || delivery?.status === 'queued'} onClick={() => { void live.mutate(() => actions.sendFile({ fileId: selected.id, expectedRevision: selected.revision })) }}><IconSendOutlineRegular size={20} />{t('files.send')}</button>}</div>
       <p className={css.deliveryStatus}>{t(allowCodexDelivery ? 'files.queueHint' : 'journey.localAIHint')}</p>
       {delivery !== undefined && <p className={css.deliveryStatus} role="status" data-status={delivery.status}>{t(`files.${delivery.status}`)}{delivery.note === undefined ? '' : ` · ${delivery.note}`}</p>}
       <div className={css.secondaryActions}><button type="button" disabled={content.content === null} onClick={() => { if (content.content !== null) download(content.content) }}><IconDownloadOutlineRegular />{t('files.download')}</button>{selected.taskId === undefined && <button type="button" disabled={pending} onClick={() => { setSubmitOpen(true) }}>{t('files.submit')}</button>}</div>

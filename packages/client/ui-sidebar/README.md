@@ -53,6 +53,8 @@ Scrollbars in the column are a pointer affordance: the shell rebinds the scrollb
 
 -----
 
+The additive `sidebar.sections` list places feature-owned project lists above the personal Workspace browser. Occupants receive the same wide/rail geometry and expansion callback; the shell preserves the personal list and Settings.
+
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 

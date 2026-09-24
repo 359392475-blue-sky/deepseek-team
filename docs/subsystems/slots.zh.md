@@ -116,6 +116,7 @@ root
 │  ├─ sidebar.brand.mark
 │  ├─ sidebar.brand.name
 │  ├─ sidebar.panellist
+│  ├─ sidebar.sections
 │  ├─ sidebar.footer.action
 │  ├─ sidebar.workspaces
 │  │  ├─ sidebar.workspaces.directoryFlow
@@ -156,6 +157,7 @@ root
 │     │  └─ conversation.session.header
 │     │     ├─ conversation.session.header.lineage
 │     │     ├─ conversation.session.header.actions
+│     │     ├─ conversation.session.header.collaboration
 │     │     ├─ conversation.session.header.utilities
 │     │     └─ conversation.session.header.corner
 │     ├─ conversation.composer
@@ -171,6 +173,8 @@ root
 │     ├─ conversation.composer.dock
 │     ├─ conversation.input.left
 │     ├─ conversation.input.right
+│     ├─ conversation.hero.badge
+│     ├─ conversation.hero.actions
 │     ├─ conversation.hero.brand.mark
 │     ├─ conversation.hero.workspace
 │     │  └─ conversation.hero.workspace.directoryFlow

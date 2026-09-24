@@ -1,8 +1,11 @@
 /** Browser action face shared by the Team Space and optional flight sidecar. */
 
+import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import type {
   TeamBattleActorRequest,
+  TeamBattleWorkspaceLink,
+  BindTeamWorkspaceRequest,
   CreateFolderRequest,
   PublishFileRequest,
   UpdateSpaceItemRequest,
@@ -69,4 +72,12 @@ export interface TeamBattleInjected {
  */
 export function failureText(error: { readonly code: string; readonly message: string }): string {
   return `${error.message} (${error.code})`
+}
+
+/** Authenticated local association and private-conversation navigation. */
+export interface TeamCollaborationInjected {
+  readonly workspaceLinks: () => Promise<RemoteResult<readonly TeamBattleWorkspaceLink[]>>
+  readonly bindWorkspace: (input: BindTeamWorkspaceRequest) => Promise<RemoteResult<readonly TeamBattleWorkspaceLink[]>>
+  readonly openWorkspace: (workspaceId: WorkspaceId) => Promise<void>
+  readonly createWorkspace: (path: string) => Promise<WorkspaceId>
 }

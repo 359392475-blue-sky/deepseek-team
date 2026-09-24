@@ -26,6 +26,9 @@ describe('Team Battle profile bundle', () => {
     const row = parsed.flatMap(patch => patch.insert ?? []).find(entry => entry.id === 'team-battle')
     expect(row?.name).toBe('@deepseek-ai/dsh-experimental-team-battle')
     expect(row?.config?.members).toHaveLength(4)
+    expect(row?.config?.sharedServer).toEqual({
+      url: 'https://lowpower.me/team-battle', accessTokenRef: 'TEAM_BATTLE_SERVER_ACCESS_TOKEN',
+    })
     expect(row?.config?.maxWeaponGrants).toBe(row?.config?.maxProcessedEventIds)
     expect(row?.config?.memberOfflineAfterMs).toBe(60_000)
   })

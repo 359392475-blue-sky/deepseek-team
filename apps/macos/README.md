@@ -45,4 +45,4 @@ pnpm run install:macos
 
 The embedded server binds only to `127.0.0.1`, and `NSAllowsLocalNetworking` is the only App Transport Security exception. App Sandbox remains disabled because the coding agent and its managed processes need the selected workspace and user-configured tools; Harness permission policy remains the execution control.
 
-The bundle is arm64-only, ad-hoc signed, intended for this Mac, and not notarized for redistribution. Installed resources are read-only as a packaging guard, not a security sandbox. Rebuild and test the complete bundle before installing an updated version; never patch a built or running app in place.
+The default source build is arm64-only and ad-hoc signed for local use; it does not perform Developer ID signing or Apple notarization. The separately distributed Team Battle ZIP contains a Developer ID signed and Apple-notarized app; see the [download and installation entry](../../README.md#start-team-battle). Installed resources are read-only as a packaging guard, not a security sandbox. Rebuild and test the complete bundle before installing an updated version; never patch a built or running app in place.

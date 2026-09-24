@@ -1,0 +1,3 @@
+- dark: team background follows the application theme; close control is visible and at least 24px.
+- light: team background follows the application theme; close control is visible and at least 24px.
+- 480px: create form has no document horizontal overflow.

@@ -82,6 +82,8 @@ File chips and editable skill references share a whole-reference hover backgroun
 
 When another writer owns the Session, the send-error toast asks the user to quit other running DSH instances and retry.
 
+Deployments can replace the Hero badge through `conversation.hero.badge` and add home actions through `conversation.hero.actions`; the default badge remains Preview when no replacement exists. The Session header renders `conversation.session.header.collaboration` for both blank and active Sessions, so project members can remain visible before the first message.
+
 <a id="temporary-composer-entries"></a>
 ## Temporary composer entries
 

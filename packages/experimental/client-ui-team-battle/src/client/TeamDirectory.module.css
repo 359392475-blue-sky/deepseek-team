@@ -1,32 +1,29 @@
-.dialog { width: min(650px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; color: #202124; background: #fff; }
+.dialog { --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2); --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2); width: min(580px, 100%); max-height: 100%; overflow-y: auto; color: var(--dsw-alias-label-primary); }
 .dialog * { box-sizing: border-box; }
-.dialog button, .dialog input, .dialog textarea, .dialog select { font: inherit; }
-.dialog button { border: 1px solid #dce2eb; padding: 8px 12px; border-radius: 7px; background: #fff; color: #305b9a; cursor: pointer; }
-.dialog button:disabled { opacity: .5; cursor: default; }
-.dialog button:focus-visible, .dialog input:focus-visible, .dialog textarea:focus-visible, .dialog select:focus-visible { outline: 2px solid #1768ff; outline-offset: 2px; }
-.tabs { display: flex; gap: 8px; flex-wrap: wrap; padding-bottom: 18px; border-bottom: 1px solid #e8e9ed; }
-.tabs button[aria-current] { color: #1768ff; background: #eff5ff; border-color: #bad0fa; }
-.form { display: grid; gap: 14px; padding-top: 18px; }
-.form p, .overview p { margin: 0; color: #606b7c; line-height: 1.65; font-size: 13px; }
-.form label, .invitation label { display: grid; gap: 7px; font-size: 13px; font-weight: 500; }
-.form input, .form textarea, .form select, .invitation textarea { min-width: 0; width: 100%; padding: 10px 12px; border: 1px solid #dce2eb; border-radius: 7px; color: #253047; background: #fff; }
-.form textarea, .invitation textarea { min-height: 82px; resize: vertical; }
-.form small { color: #7b7f89; font-size: 12px; }
-.columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.dialog .primary { background: #1768ff; color: white; border-color: #1768ff; justify-self: start; }
-.note { padding: 12px 14px; background: #f5f8fd; border-radius: 7px; font-size: 12px; line-height: 1.7; color: #627186; }
-.overview { display: grid; gap: 16px; padding-top: 18px; }
-.dialog .space { display: grid; text-align: left; gap: 5px; color: #253047; }
-.space[aria-pressed='true'] { border-color: #1768ff; background: #f4f8ff; }
-.space span, .space small { color: #7b7f89; font-size: 12px; overflow-wrap: anywhere; }
-.rules { display: grid; gap: 18px; margin-top: 20px; }
+.form { display: grid; gap: 18px; }
+.form p, .overview p { margin: 0; color: var(--dsw-alias-label-secondary); line-height: 1.65; font-size: 13px; }
+.form label, .invitation label { display: grid; gap: 8px; font-size: 13px; font-weight: 500; }
+.form label > span { height: 40px; }
+.form input { font: inherit; }
+.form textarea, .form select, .invitation textarea { min-width: 0; width: 100%; padding: 10px 12px; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: 8px; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-1); font: inherit; }
+.form textarea, .invitation textarea { min-height: 100px; resize: vertical; }
+.form textarea:focus-visible, .form select:focus-visible, .invitation textarea:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+.form small { color: var(--dsw-alias-label-tertiary); font-size: 12px; }
+.form > button { justify-self: end; }
+.columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.note { padding: 12px 14px; background: var(--dsw-alias-bg-layer-1); border-radius: 8px; font-size: 12px; line-height: 1.7; color: var(--dsw-alias-label-secondary); }
+.overview { display: grid; gap: 16px; }
+.dialog .space { display: grid; height: auto; text-align: left; justify-content: stretch; gap: 5px; color: var(--dsw-alias-label-primary); padding: 14px; border-radius: 10px; }
+.space[aria-pressed='true'] { border-color: var(--dsw-alias-brand-primary); background: var(--dsw-alias-interactive-bg-active); }
+.space span, .space small { color: var(--dsw-alias-label-secondary); font-size: 12px; overflow-wrap: anywhere; }
+.rules { display: grid; gap: 18px; }
 .rules h3 { font-size: 14px; margin: 0 0 7px; }
-.rules p { color: #647187; line-height: 1.7; font-size: 13px; margin: 0; }
+.rules p { color: var(--dsw-alias-label-secondary); line-height: 1.7; font-size: 13px; margin: 0; }
 .storage { display: grid; gap: 8px; font-size: 12px; overflow-wrap: anywhere; }
-.invitation { padding: 16px; border: 1px solid #b5cffa; background: #f6f9ff; border-radius: 9px; }
+.invitation { padding: 16px; border: 0.5px solid var(--dsw-alias-border-l3); background: var(--dsw-alias-bg-layer-1); border-radius: 10px; }
 .invitation p { margin: 8px 0; }
 .accessList { display: grid; gap: 8px; }
-.accessList > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #e8e9ed; font-size: 13px; }
-.accessList small { display: block; color: #7b7f89; font-size: 12px; margin-top: 4px; }
-.error { color: #b33d3d; font-size: 13px; overflow-wrap: anywhere; }
-@media (max-width: 500px) { .columns { grid-template-columns: 1fr; } .tabs { gap: 5px; } .tabs button { padding: 7px 9px; font-size: 12px; } }
+.accessList > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l1); font-size: 13px; }
+.accessList small { display: block; color: var(--dsw-alias-label-tertiary); font-size: 12px; margin-top: 4px; }
+.error { color: var(--dsw-alias-state-error-primary); font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 500px) { .columns { grid-template-columns: 1fr; } }

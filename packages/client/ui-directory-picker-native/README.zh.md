@@ -43,6 +43,8 @@ kind: "package-reference"
 
 两个 slot 注册经嵌套的 `ctx.slots.inject()` 调用作为一个事务性 effect 安装，因为任一声明条目都可能晚些激活或替换其声明。填充在每个上升沿 `open` 时只武装一次，因此重渲染永远不会再拉起一个选择器；结算结果挂在 ref 上，让答复到达持有方最新的处理器。HMR（热模块替换）导致填充被替换时，卸载会整体丢弃结算：wire 没有按请求中止的机制，因此 Host 侧选择器会一直存活到被答复，而它的答复无处落地。node 半部是一个空 `apply`，让插件留在 Host 名单上。
 
+本包还提供 [ui-workspace](../ui-workspace/README.zh.md#the-directory-flow-hole) 声明的 `workspace.directoryFlow` 工厂，供独立客户端条目复用此原生流程。工厂注册会随插件 fiber（生命周期实例）一起释放。
+
 </details>
 
 -----

@@ -23,19 +23,15 @@
       "types": "./lib/types/codex-hook.d.ts",
       "default": "./lib/bin.js"
     },
-    "./invariant": {
-      "types": "./lib/types/invariant.d.ts",
-      "default": "./lib/invariant.js"
-    },
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
   "files": [
     "lib/index.js",
-    "lib/invariant.js",
     "lib/bin.js",
-    "lib/types/**/*.d.ts",
-    "deploy/profile"
+    "deploy/profile/package.json",
+    "deploy/profile/cordis.patch.yml",
+    "lib/types/**/*.d.ts"
   ],
   "license": "MIT",
   "dependencies": {
@@ -45,15 +41,13 @@
     "@deepseek-ai/cordis": "workspace:~",
     "@deepseek-ai/dsh-credentials": "workspace:*",
     "@deepseek-ai/dsh-experimental-team-battle": "workspace:*",
-    "@deepseek-ai/dsh-host-webserver": "workspace:*",
-    "@deepseek-ai/dsh-invariants": "workspace:*"
+    "@deepseek-ai/dsh-host-webserver": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
     "@deepseek-ai/dsh-credentials": "workspace:*",
     "@deepseek-ai/dsh-experimental-team-battle": "workspace:*",
     "@deepseek-ai/dsh-host-webserver": "workspace:*",
-    "@deepseek-ai/dsh-invariants": "workspace:*",
     "@deepseek-ai/dsh-app-boot": "workspace:*",
     "@deepseek-ai/dsh-credentials-local": "workspace:*",
     "@deepseek-ai/dsh-storage": "workspace:*",

@@ -8,7 +8,12 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-experimental-team-battle/remote'
 import type { TypertRemoteContribution } from '@deepseek-ai/dsh-typert-protocol'
-import type { TeamBattleInjected, TeamJourneyInjected } from './actions.ts'
+import type { TeamBattleInjected, TeamJourneyInjected, TeamCollaborationInjected } from './actions.ts'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
+import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
+import { TeamConversationMembers, TeamEditionBadge, TeamHomeActions, TeamProjectSidebar } from './TeamNavigation.tsx'
+import { NAV_NS, navEn, navZh, type TeamNavigationKey } from './navigation-locales.ts'
 import { FlightGamePanel } from './FlightGamePanel.tsx'
 import { en, NS, zh, type TeamBattleKey } from './locales.ts'
 import { TeamSpaceView } from './TeamSpaceView.tsx'
@@ -18,14 +23,16 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** Team Battle project-space and leisure-game copy. */
     'team-battle': TeamBattleKey
+    'team-navigation': TeamNavigationKey
   }
 }
 
 /** Required browser services for Remote, locale, and slot registration. */
-export const inject = ['remote', 'slots', 'locale']
+export const inject = ['remote', 'slots', 'locale', 'layout', 'uiWorkspace', 'workspaces']
 
 function registerUi(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'client-ui-team-battle: dictionaries')
+  ctx.effect(() => ctx.locale.register(NAV_NS, { zh: navZh, en: navEn }), 'client-ui-team-battle: navigation dictionaries')
   const t = ctx.locale.bind(NS)
   const actions: TeamBattleInjected = {
     load: async input => await ctx.remote.teamBattle.view(input),
@@ -55,22 +62,44 @@ function registerUi(ctx: ClientContext): void {
     revokeMember: async input => await ctx.remote.teamBattle.revokeMember(input),
   }
 
+  const panelId = 'team-battle' as MainPanelId
   const navigation = createTeamSpaceNavigation(
     typeof window !== 'undefined' && new URL(window.location.href).searchParams.get('team') === '1',
+    (opened) => { ctx.layout.selectPanel(opened ? panelId : null) },
   )
-  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
-    name: 'shell.overlay',
-    id: 'team-space',
-    locale: NS,
-    inject: () => ({ ...actions, journey, navigation }),
-  }, RootTeamSpace))
-  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
-    name: 'sidebar.footer.action',
-    id: 'team-space',
-    order: 0,
-    locale: NS,
-    inject: () => ({ navigation }),
+  const collaboration: TeamCollaborationInjected = {
+    workspaceLinks: async () => await ctx.remote.teamBattle.workspaceLinks(),
+    bindWorkspace: async input => await ctx.remote.teamBattle.bindWorkspace(input),
+    openWorkspace: async (id) => { await ctx.uiWorkspace.openWorkspace(id); navigation.close() },
+    createWorkspace: async path => (await ctx.workspaces.create({ path })).workspaceId,
+  }
+  ctx.slots.inject('main', () => {
+    const dispose = ctx.slots.register({
+      name: 'main', key: panelId, locale: NS,
+      inject: () => ({ ...actions, journey, navigation }),
+    }, RootTeamSpace)
+    if (navigation.getSnapshot()) ctx.layout.selectPanel(panelId)
+    return dispose
+  })
+  ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
+    name: 'sidebar.panellist', id: panelId, order: -10,
+    label: () => t('view.team'), locale: NS, inject: () => ({ navigation }),
   }, TeamSpaceEntry))
+  ctx.slots.inject('sidebar.sections', () => ctx.slots.register({
+    name: 'sidebar.sections', id: 'team-projects', locale: NAV_NS,
+    inject: () => ({ journey, collaboration, navigation }),
+  }, TeamProjectSidebar))
+  ctx.slots.inject('conversation.hero.badge', () => ctx.slots.register({
+    name: 'conversation.hero.badge', locale: NAV_NS,
+  }, TeamEditionBadge))
+  ctx.slots.inject('conversation.hero.actions', () => ctx.slots.register({
+    name: 'conversation.hero.actions', id: 'team-projects', locale: NAV_NS,
+    inject: () => ({ navigation }),
+  }, TeamHomeActions))
+  ctx.slots.inject('conversation.session.header.collaboration', () => ctx.slots.register({
+    name: 'conversation.session.header.collaboration', id: 'team-members', locale: NAV_NS,
+    inject: () => ({ collaboration, journey, load: actions.load }),
+  }, TeamConversationMembers))
 
   ctx.slots.inject('conversation.chat.sidecar', () => ctx.slots.register({
     name: 'conversation.chat.sidecar',
@@ -99,7 +128,7 @@ export async function mountTeamBattleUi(
   contribution: TypertRemoteContribution,
 ): Promise<() => Promise<void>> {
   const disposeRemote = await ctx.remote.$mount(contribution)
-  const ui = ctx.inject(['remote.teamBattle', 'slots', 'locale'], registerUi)
+  const ui = ctx.inject(['remote.teamBattle', 'slots', 'locale', 'layout', 'uiWorkspace', 'workspaces'], registerUi)
   try {
     await ui
   } catch (error) {

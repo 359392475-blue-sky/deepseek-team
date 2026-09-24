@@ -6,6 +6,7 @@ import type {
   TeamBattleArtifactReviewStatus,
   TeamBattleArtifactView,
   TeamBattleFileView,
+  TeamBattleFolderView,
   TeamBattleTaskStatus,
   TeamBattleTaskView,
   TeamBattleMemberId,
@@ -21,6 +22,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { TeamBattleInjected } from './actions.ts'
 import { NS, type TeamBattleKey } from './locales.ts'
 import type { TeamBattleLiveState } from './useTeamBattleLive.ts'
+import { formatSharedContext } from './shared-context.ts'
 import css from './TeamSpaceView.module.css'
 
 type TaskTransition = 'claim' | 'release' | 'submit' | 'reopen' | 'delete'
@@ -63,6 +65,8 @@ type WorkflowProps = TeamBattleInjected & PropsLocale<typeof NS> & {
   readonly tab: 'tasks' | 'context' | 'artifacts'
   readonly live: TeamBattleLiveState
   readonly files: readonly TeamBattleFileView[]
+  readonly folders: readonly TeamBattleFolderView[]
+  readonly filesReady: boolean
   readonly openFile: (file: TeamBattleFileView) => void
 }
 
@@ -204,12 +208,12 @@ function ArtifactCard({
         : externalArtifactUrl(artifact.uri) !== undefined
           ? <a className={css.uri} href={externalArtifactUrl(artifact.uri)} target="_blank" rel="noreferrer">{artifact.uri}</a>
           : <p className={css.artifactAddress}>{artifact.uri}</p>}
-      <dl className={css.provenance}>
+      <dl className={css.sourceDetails}>
         <div><dt>{t('artifacts.mediaType')}</dt><dd>{artifact.mediaType}</dd></div>
         <div><dt>{t('artifacts.sha256')}</dt><dd>{artifact.sha256}</dd></div>
         <div><dt>{t('artifacts.bytes')}</dt><dd>{artifact.bytes.toLocaleString()}</dd></div>
         {file !== undefined && <div><dt>{t('files.version')}</dt><dd>{file.versionLabel}</dd></div>}
-        <div><dt>{t('context.provenance')}</dt><dd>{memberName} · {formatTime(artifact.createdAt)}</dd></div>
+        <div><dt>{t('context.source')}</dt><dd>{memberName} · {formatTime(artifact.createdAt)}</dd></div>
       </dl>
       {artifact.review.note !== undefined && <p className={css.reviewNote}>{artifact.review.note}</p>}
       {artifact.review.status === 'pending' && artifact.createdByMemberId === localMemberId && <p className={css.reviewNote}>{t('artifacts.independentReview')}</p>}
@@ -230,13 +234,15 @@ function ArtifactCard({
  * @returns editable tasks, meeting notes, or artifact review controls.
  */
 export function TeamWorkflowPanel({
-  tab, live, t, files, openFile, onPublish, ownerMemberId, availableMemberIds, ...actions
+  tab, live, t, files, folders, filesReady, openFile, onPublish, ownerMemberId, availableMemberIds, ...actions
 }: WorkflowProps) {
   const [handoffTask, setHandoffTask] = useState<string | null>(null)
   const [handoffTarget, setHandoffTarget] = useState('')
   const [handoffNote, setHandoffNote] = useState('')
   const [copiedTask, setCopiedTask] = useState<string | null>(null)
   const [copyError, setCopyError] = useState<string | null>(null)
+  const [manualContext, setManualContext] = useState<string | null>(null)
+  const [copiedContext, setCopiedContext] = useState(false)
   const [creatingTask, setCreatingTask] = useState(false)
   const [taskDraft, setTaskDraft] = useState<TaskDraft>(EMPTY_TASK)
   const [editingTask, setEditingTask] = useState<string | null>(null)
@@ -310,11 +316,15 @@ export function TeamWorkflowPanel({
     const updated = await live.mutate(() => actions.updateTask({ taskId: task.id, expectedRevision: task.revision, action: 'handoff', targetMemberId: target.id, ...(handoffNote.trim() === '' ? {} : { note: handoffNote.trim() }) }))
     if (updated !== undefined) { setHandoffTask(null); setHandoffTarget(''); setHandoffNote('') }
   }
-  const copyTask = async (task: TeamBattleTaskView): Promise<void> => {
+  const copyContext = async (task?: TeamBattleTaskView): Promise<void> => {
+    if (view === null) return
+    const text = formatSharedContext(view, { files, folders }, t, task)
+    setCopiedTask(null); setCopiedContext(false); setManualContext(null); setCopyError(null)
     try {
-      await navigator.clipboard.writeText(`${view?.project.name ?? ''}\n\n${task.title}\n${task.description}`)
-      setCopiedTask(task.id); setCopyError(null)
-    } catch (error) { void error; setCopyError(t('journey.copyFailed')) }
+      await navigator.clipboard.writeText(text)
+      if (task === undefined) setCopiedContext(true)
+      else setCopiedTask(task.id)
+    } catch (error) { void error; setCopyError(t('journey.copyFailed')); setManualContext(text) }
   }
   if (view === null) return null
 
@@ -326,6 +336,7 @@ export function TeamWorkflowPanel({
 
   return (
     <div className={css.workflow}>
+      {copyError !== null && <div className={css.form}><p role="alert" className={css.formError}>{copyError}</p><label>{t('journey.manualContext')}<textarea readOnly value={manualContext ?? ''} onFocus={(event) => { event.currentTarget.select() }} /></label></div>}
       {tab === 'tasks' && (
         <section>
           <div className={css.metrics}>
@@ -333,7 +344,6 @@ export function TeamWorkflowPanel({
 
           </div>
           <section className={css.taskFlow} aria-label={t('journey.flow')}><strong>{t('journey.flow')}</strong><ol>{(['flowOpen', 'flowWork', 'flowReview', 'flowDone'] as const).map(step => <li key={step}>{t(`journey.${step}`)}</li>)}</ol></section>
-          {copyError !== null && <p role="alert" className={css.formError}>{copyError}</p>}
           <div className={css.canvasHeading}>
             <div><span className={css.eyebrow}>{t('tabs.tasks')}</span><h2>{view.tasks.length}</h2></div>
             <button type="button" onClick={() => {
@@ -389,7 +399,7 @@ export function TeamWorkflowPanel({
                     t={t}
                   />
                   {task.status !== 'completed' && <div className={css.cardActions}>
-                    <button type="button" onClick={() => { void copyTask(task) }}>{t('journey.copyTask')}</button>
+                    <button type="button" disabled={!filesReady} onClick={() => { void copyContext(task) }}>{t('journey.copyTask')}</button>
                     {(task.status === 'open' || task.status === 'in_progress') && (task.ownerMemberId === view.localMemberId || ownerMemberId === view.localMemberId) && <button type="button" disabled={live.pending} onClick={() => { setHandoffTask(task.id); setHandoffTarget(''); setHandoffNote('') }}>{t('journey.handoff')}</button>}
                   </div>}
                   {copiedTask === task.id && <p role="status" className={css.formHint}>{t('journey.copyTaskHint')}</p>}
@@ -409,6 +419,9 @@ export function TeamWorkflowPanel({
       {tab === 'context' && (
         <section>
           <div className={css.canvasHeading}><div><span className={css.eyebrow}>{t('tabs.context')}</span><h2>{t('context.new')}</h2></div></div>
+          <p className={css.formHint}>{t('journey.contextHint')}</p>
+          <div className={css.cardActions}><button type="button" disabled={!filesReady} onClick={() => { void copyContext() }}>{t('journey.copyContext')}</button></div>
+          {copiedContext && <p role="status" className={css.formHint}>{t('journey.copyContextHint')}</p>}
           <p className={css.formHint}>{t('journey.publishDestination', { name: view.project.name })} · {t('journey.publishNotice')}</p>
           <form className={css.form} onSubmit={(event) => { void publishContext(event) }}>
             <textarea required value={contextDraft.summary} placeholder={t('context.summary')} onChange={(event) => { setContextDraft({ ...contextDraft, summary: event.target.value }) }} />
@@ -417,7 +430,7 @@ export function TeamWorkflowPanel({
             </div>
             <div className={css.formActions}><button type="submit" disabled={live.pending || contextDraft.summary.trim() === ''}>{t('common.save')}</button></div>
           </form>
-          <div className={css.cardList}>{view.contexts.map(context => <article key={context.id} className={css.card}><div className={css.cardTitle}><strong>{context.summary}</strong><time>{formatTime(context.createdAt)}</time></div>{(['decisions', 'blockers', 'nextSteps'] as const).map(field => context[field].length > 0 && <div key={field}><h3>{t(`context.${field}`)}</h3><ul>{context[field].map(item => <li key={item}>{item}</li>)}</ul></div>)}<div className={css.taskMeta}><span>{t('context.provenance')}: {memberName(context.createdByMemberId)}</span>{context.sourceRefs.map(source => <span key={source}>{source}</span>)}</div></article>)}</div>
+          <div className={css.cardList}>{view.contexts.map(context => <article key={context.id} className={css.card}><div className={css.cardTitle}><strong>{context.summary}</strong><time>{formatTime(context.createdAt)}</time></div>{(['decisions', 'blockers', 'nextSteps'] as const).map(field => context[field].length > 0 && <div key={field}><h3>{t(`context.${field}`)}</h3><ul>{context[field].map(item => <li key={item}>{item}</li>)}</ul></div>)}<div className={css.taskMeta}><span>{t('context.source')}: {memberName(context.createdByMemberId)}</span>{context.sourceRefs.map(source => <span key={source}>{source}</span>)}</div></article>)}</div>
         </section>
       )}
       {tab === 'artifacts' && (

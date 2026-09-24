@@ -1,9 +1,10 @@
 /** Team Space shell with a live roster, shared files, and project workflows. */
 
-import { useCallback, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { TeamBattleFileView, TeamBattleMemberId, TeamBattleMemberView, TeamBattleTeamSummary, TeamBattleDirectoryView } from '@deepseek-ai/dsh-experimental-team-battle/client'
 import {
-  FishLogo,
+  Button,
+  IconShieldOutlineRegular,
   IconPlusOutlineRegular,
   IconRefreshOutlineRegular,
   IconFolderCloseRegular,
@@ -19,13 +20,6 @@ import { TeamSpaceFiles } from './TeamSpaceFiles.tsx'
 import { useLiveProjection, type LiveProjectionState } from './useLiveProjection.ts'
 import { TeamDirectory, type TeamDirectoryPage } from './TeamDirectory.tsx'
 import { TeamWorkflowPanel } from './TeamWorkflowPanel.tsx'
-import engineeringAvatar from '../assets/member-engineering.png'
-import productAvatar from '../assets/member-product.png'
-import qualityAvatar from '../assets/member-quality.png'
-import agentAvatar from '../assets/member-agent.png'
-import lockUrl from '../assets/lock.png'
-import teamIcon from '../assets/nav-team.png'
-import conversationIcon from '../assets/nav-conversation.png'
 import css from './TeamSpaceView.module.css'
 
 type Tab = 'files' | 'context' | 'tasks' | 'artifacts'
@@ -38,23 +32,13 @@ export type TeamSpaceScreenProps = TeamBattleInjected & PropsLocale<typeof NS> &
   readonly journey: TeamJourneyInjected
   readonly identity: string
   readonly onConversation: () => void
-}
-
-function memberAvatar(member: TeamBattleMemberView): string | undefined {
-  switch (member.id as string) {
-    case 'engineering': return engineeringAvatar
-    case 'product': return productAvatar
-    case 'design': return productAvatar
-    case 'quality': return qualityAvatar
-    default: return undefined
-  }
+  readonly initialPage?: TeamDirectoryPage | undefined
+  readonly selectedTeamId?: TeamBattleTeamSummary['id'] | undefined
+  readonly onSelectTeam?: (team: TeamBattleTeamSummary) => void
 }
 
 function Avatar({ member }: { readonly member: TeamBattleMemberView }) {
-  const image = memberAvatar(member)
-  return image === undefined
-    ? <span className={css.avatar} style={{ '--member-accent': member.color ?? '#4677bc' } as CSSProperties}>{member.name.slice(0, 1)}</span>
-    : <img className={css.avatar} src={image} alt="" />
+  return <span className={css.avatar}>{member.name.slice(0, 1)}</span>
 }
 
 /**
@@ -67,20 +51,22 @@ export function TeamSpaceView({ sessionId, openView, t, ...actions }: TeamSpaceV
 }
 
 /**
- * Render the screenshot-based team page against authoritative Remote data.
- * @param props - stable identity, conversation navigation, locale, and Remote actions.
+ * Render the selected project inside the application shell.
+ * @param props - selected project, initial dialog, conversation navigation, locale, and Remote actions.
  * @returns live team roster, file workspace, and workflow tabs.
  */
-export function TeamSpaceScreen({ identity, onConversation, journey, t, ...actions }: TeamSpaceScreenProps) {
+export function TeamSpaceScreen({
+  identity, onConversation, journey, initialPage, selectedTeamId, onSelectTeam, t, ...actions
+}: TeamSpaceScreenProps) {
   const directory = useLiveProjection(journey.teams, `${identity}:directory`)
   const [selection, setSelection] = useState(() => {
     try { return localStorage.getItem('team-battle:selected-space') }
     catch (error) { void error; return null }
   })
   const [actor, setActor] = useState<TeamBattleMemberId>()
-  const [page, setPage] = useState<TeamDirectoryPage | null>(null)
+  const [page, setPage] = useState<TeamDirectoryPage | null>(initialPage ?? null)
   const teams = directory.view?.teams ?? []
-  const selected = teams.find(team => team.id === selection) ?? teams.find(team => team.mode !== 'legacy') ?? teams[0]
+  const selected = teams.find(team => team.id === (selectedTeamId ?? selection)) ?? teams.find(team => team.mode !== 'legacy') ?? teams[0]
   const teamId = selected?.mode === 'legacy' ? undefined : selected?.id
   const simulationActor = teamId === undefined ? actor : undefined
   const scoped = useMemo(() => scopeTeamBattleActions(actions, simulationActor, teamId), [
@@ -90,7 +76,7 @@ export function TeamSpaceScreen({ identity, onConversation, journey, t, ...actio
     actions.updateSpaceItem, actions.readFile, actions.sendFile, actions.submitFile,
   ])
   const select = (team: TeamBattleTeamSummary): void => {
-    setSelection(team.id); setActor(undefined)
+    setSelection(team.id); setActor(undefined); onSelectTeam?.(team)
     try { localStorage.setItem('team-battle:selected-space', team.id) }
     catch (error) { void error /* Browser storage is optional for selecting a space. */ }
   }
@@ -117,7 +103,7 @@ function TeamSpaceContent({
   readonly onActorChange: (member: TeamBattleMemberId) => void
 }) {
   const live = useTeamBattleLive(actions, identity)
-  const space = useTeamSpaceLive(actions, identity)
+  const space = useTeamSpaceLive(actions, identity, t)
   const [tab, setTab] = useState<Tab>('files')
   const [requestedFile, setRequestedFile] = useState<Pick<TeamBattleFileView, 'id' | 'parentId'> | null>(null)
   const [publishing, setPublishing] = useState(false)
@@ -137,47 +123,25 @@ function TeamSpaceContent({
   const error = live.error ?? space.error ?? summary.error ?? directory.error
   const accessDenied = error?.includes('TEAM_BATTLE_ACCESS_DENIED') === true
   const view = accessDenied ? null : live.view
-  const roster = view?.members.filter(member => current?.mode === 'legacy' || summary.view === null
+  const roster = view?.members.filter(member => current?.mode === 'legacy'
     || current?.memberAccess.some(access => access.memberId === member.id && access.status === 'active') === true) ?? []
   const online = roster.filter(member => member.status !== 'offline').length
-  const localMember = view?.members.find(member => member.id === view.localMemberId)
 
   return (
     <main className={css.root} data-team-space-view="">
-      <nav className={css.rail} aria-label={t('nav.main')}>
-        <span aria-label={t('brand.deepseek')} className={css.brand}><FishLogo size={48} /></span>
-        <div className={css.railLinks}>
-          <button type="button" onClick={onConversation}><img className={css.railIcon} src={conversationIcon} alt="" /><span>{t('nav.conversation')}</span></button>
-          <button type="button" aria-current="page" onClick={() => { setTab('files') }}><img className={css.railIcon} src={teamIcon} alt="" /><span>{t('nav.team')}</span><i /></button>
-        </div>
-        {localMember !== undefined && <div className={css.currentMember} title={localMember.name}><Avatar member={localMember} /></div>}
-      </nav>
-      <aside className={css.members} aria-label={t('members.title')}>
-        <h2>{t('members.title')}</h2>
-        <select className={css.projectPicker} aria-label={t('journey.select')} value={selected?.id ?? ''} onChange={(event) => {
-          const team = directory.view?.teams.find(item => item.id === event.target.value)
-          if (team !== undefined) select(team)
-        }}>{(directory.view?.teams ?? []).map(team => <option key={team.id} value={team.id}>{team.name}</option>)}</select>
-        <div className={css.spaceActions}><button type="button" onClick={() => { setPage('create') }}>{t('journey.create')}</button><button type="button" onClick={() => { setPage('join') }}>{t('journey.join')}</button></div>
-        {selected !== undefined && <p className={css.spaceLocation}>{t('journey.storage')}<span>{selected.storageLocation}</span></p>}
-        <button type="button" className={css.inviteButton} onClick={() => { void directory.refresh(); setPage('invite') }}>{t('journey.invite')}</button>
-        <div className={css.memberList}>
-          {roster.map(member => (
-            <article key={member.id} className={css.member} data-local={member.id === view?.localMemberId ? '' : undefined}>
-              <Avatar member={member} />
-              <div className={css.memberInfo}>
-                <div><strong>{member.name}</strong><span> · {member.role}</span></div>
-                <small><i data-status={member.status} />{t(`member.${member.status}`)}</small>
-              </div>
-              <img className={css.memberAgent} src={agentAvatar} alt="" />
-            </article>
-          ))}
-        </div>
-        {view !== null && <p className={css.connected}><i data-status={online > 0 ? 'online' : 'offline'} />{t('members.connected', { count: online })}</p>}
-      </aside>
       <section className={css.workspace}>
         <header className={css.header}>
-          <div className={css.heading}><h1>{t('view.team')}</h1><img className={css.lock} src={lockUrl} alt="" /><p>{t('space.confirmedOnly')}</p><button type="button" className={css.manageButton} onClick={() => { void directory.refresh(); setPage('overview') }}>{t('journey.manage')}</button></div>
+          <div className={css.heading}>
+            <div className={css.projectHeading}><h1>{current?.name ?? t('view.team')}</h1><p>{current?.goal ?? t('space.confirmedOnly')}</p></div>
+            <section className={css.collaborators} aria-label={t('members.title')}>
+              <div className={css.memberList}>{roster.map(member => <article key={member.id} className={css.member} data-local={member.id === view?.localMemberId ? '' : undefined} title={`${member.name} · ${member.role} · ${t(`member.${member.status}`)}`}><Avatar member={member} /><span>{member.name}</span><i data-status={member.status} /></article>)}</div>
+              {view !== null && <small>{t('members.connected', { count: online })}</small>}
+            </section>
+          </div>
+          <div className={css.projectActions}>
+            <Button variant="outline" size="sm" onClick={() => { void directory.refresh(); setPage('invite') }}>{t('journey.invite')}</Button>
+            <Button variant="ghost" size="sm" data-team-conversation-entry="" onClick={onConversation}>{t('journey.localAI')}</Button>
+          </div>
           <div className={css.toolbar}>
             <nav className={css.tabs} aria-label={t('view.team')}>
               {(['files', 'context', 'tasks', 'artifacts'] as const).map(value => <button key={value} type="button" aria-current={tab === value ? 'page' : undefined} onClick={() => { setTab(value) }}>{t(`tabs.${value}`)}</button>)}
@@ -189,6 +153,7 @@ function TeamSpaceContent({
           </div>
         </header>
         {selected?.mode === 'legacy' && <div className={css.startHint}><span>{t('journey.localHint')}</span><button type="button" onClick={() => { setPage('create') }}>{t('journey.create')}</button></div>}
+        {view !== null && <details className={css.quickStart}><summary>{t('journey.quickStart')}</summary><ol>{(['quickStartRead', 'quickStartWork', 'quickStartShare'] as const).map(step => <li key={step}>{t(`journey.${step}`)}</li>)}</ol></details>}
         {view?.simulationEnabled === true && <section className={css.simulation} aria-label={t('simulation.title')}>
           <strong>{t('simulation.title')}</strong>
           <label>{t('simulation.member')}<select value={view.localMemberId} disabled={live.pending || space.pending} onChange={(event) => {
@@ -202,9 +167,9 @@ function TeamSpaceContent({
           ? <div className={css.accessRecovery}><p>{t('journey.accessDenied')}</p><button type="button" onClick={() => { setPage('join') }}>{t('journey.join')}</button></div>
           : live.loading ? t('common.loading') : t('common.error')}</div> : <>
           <div className={css.fileWorkspace} hidden={tab !== 'files'}><TeamSpaceFiles requestedFile={requestedFile} allowCodexDelivery={selected?.mode === 'legacy'} actions={actions} project={view} live={space} projectLive={live} t={t} publishing={publishing} setPublishing={setPublishing} creatingFolder={creatingFolder} setCreatingFolder={setCreatingFolder} /></div>
-          <div className={css.workflowWorkspace} hidden={tab === 'files'}><TeamWorkflowPanel {...actions} onPublish={() => { setTab('files'); setPublishing(true) }} ownerMemberId={current?.ownerMemberId} availableMemberIds={current?.mode === 'legacy' ? undefined : current?.memberAccess.filter(item => item.status === 'active').map(item => item.memberId)} tab={tab === 'files' ? 'tasks' : tab} live={live} files={space.view?.files ?? []} openFile={(file) => { setRequestedFile({ id: file.id, ...(file.parentId === undefined ? {} : { parentId: file.parentId }) }); setTab('files') }} t={t} /></div>
+          <div className={css.workflowWorkspace} hidden={tab === 'files'}><TeamWorkflowPanel {...actions} onPublish={() => { setTab('files'); setPublishing(true) }} ownerMemberId={current?.ownerMemberId} availableMemberIds={current?.mode === 'legacy' ? undefined : current?.memberAccess.filter(item => item.status === 'active').map(item => item.memberId)} tab={tab === 'files' ? 'tasks' : tab} live={live} files={space.view?.files ?? []} folders={space.view?.folders ?? []} filesReady={space.view !== null && space.error === null} openFile={(file) => { setRequestedFile({ id: file.id, ...(file.parentId === undefined ? {} : { parentId: file.parentId }) }); setTab('files') }} t={t} /></div>
         </>}
-        <footer className={css.privacy}><img className={css.lock} src={lockUrl} alt="" />{t('space.private')}<button type="button" onClick={() => { setPage('privacy') }}>{t('journey.privacy')}</button></footer>
+        <footer className={css.privacy}><IconShieldOutlineRegular size={16} />{t('space.private')}<button type="button" onClick={() => { setPage('privacy') }}>{t('journey.privacy')}</button></footer>
       </section>
       {page !== null && <TeamDirectory
         page={page} setPage={setPage} close={() => { setPage(null) }} journey={journey}

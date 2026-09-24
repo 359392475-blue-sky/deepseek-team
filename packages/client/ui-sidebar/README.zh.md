@@ -53,6 +53,8 @@ dsh Web 客户端的侧边栏让用户识别当前构建、启动新会话、将
 
 -----
 
+`sidebar.sections` 附加列表在个人 Workspace 浏览器上方放置功能插件的项目列表。贡献者接收相同的展开/窄栏状态与展开回调；外壳保留个人列表和设置。
+
 <a id="understand-the-implementation"></a>
 ## 理解实现
 

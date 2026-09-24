@@ -1,0 +1,21 @@
+- dialog "Publish to Team Space":
+  - heading "Publish to Team Space" [level=2]
+  - button "Close"
+  - strong: Publish to “Notes hardware research”
+  - paragraph: Only the content entered here and selected files are published. Review the complete file first; all space members can read it after publication.
+  - text: Choose file
+  - button "Choose file"
+  - paragraph: Up to 2 MB. Bytes upload only when you click Publish.
+  - text: Name
+  - textbox "Name": hardware-research.md
+  - text: Version label
+  - textbox "Version label": v1.2
+  - paragraph: The version label describes the file; it does not replace an older file. Rename a revision, or create a version folder on Files and open it before publishing.
+  - text: From
+  - textbox "From":
+    - /placeholder: "For example: My Codex"
+  - text: Note
+  - textbox "Note": Revised delivery with retained upload input.
+  - alert: This folder already contains a file or folder with that name. Existing items cannot be overwritten. Choose another name, or publish each version in a different folder. Your input has been kept.
+  - button "Cancel"
+  - button "Publish"

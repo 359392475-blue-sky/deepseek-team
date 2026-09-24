@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/team-battle.md
-team-battle.md: 7905db0b00a9cf3fce9d49818c0951f55f70e4eb
-team-battle.zh.md: aabe6be139c2bf2b10210227658dab50d5253ca1
+team-battle.md: d8c6f7e160cdd093a3bfc6b5fd8975f9ca33f579
+team-battle.zh.md: 2a70aab58e2b065a64a60c7375ed1384584d9b50

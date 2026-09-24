@@ -1,1 +1,1 @@
-- alert: The server did not accept the creation authorization code. Check the shared server address and confirm the complete code with its administrator, then retry. Your project name, goal, and member details are retained. To join an existing project, use “Join with an invitation”.
+- alert: The team service cannot create a project. Ask its administrator to check the service configuration, then retry. Your project details are retained.

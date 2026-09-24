@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, render, waitFor } from '@testing-library/react'
 import { afterEach } from 'vitest'
+import { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
+import type { PropsRuntime, PropsRenderFactories } from '@deepseek-ai/dsh-client-ui-slots'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { DirectoryFlowOwnerProps } from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { apply, inject } from '../src/client/index.ts'
@@ -61,9 +63,13 @@ describe('directory-picker-native client half', () => {
     const fiber = before.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     for (const hole of HOLES) expect(before.slots.entries(hole)).toHaveLength(1)
+    expect(() => before.slots.registerFactory({ name: 'workspace.directoryFlow', scope: 'root' }, () => null))
+      .toThrow('slot factory "workspace.directoryFlow" already has a definition')
     // Registry-contribution disposal proof: the fiber going down empties the holes.
     await fiber.dispose()
     for (const hole of HOLES) expect(before.slots.entries(hole)).toHaveLength(0)
+    const disposeReplacement = before.slots.registerFactory({ name: 'workspace.directoryFlow', scope: 'root' }, () => null)
+    disposeReplacement()
 
     const after = await bench()
     await after.ctx.plugin({ inject: [...inject], apply }).await()
@@ -78,7 +84,7 @@ describe('directory-picker-native client half', () => {
     b.declare()
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const duplicate = b.ctx.plugin({ inject: [...inject], apply })
-    await expect(duplicate.await()).rejects.toThrow(/already has a registration/)
+    await expect(duplicate.await()).rejects.toThrow('slot factory "workspace.directoryFlow" already has a definition')
     for (const hole of HOLES) expect(b.slots.entries(hole)).toHaveLength(1)
   })
 
@@ -292,4 +298,20 @@ describe('directory-picker-native node half', () => {
   it('the node apply is an inert loader seat', () => {
     expect(() => { nodeApply() }).not.toThrow()
   })
+})
+
+
+it('serves the reusable directory flow through the composed native service', async () => {
+  const runtime = await SlotTestRuntime.create()
+  const pickDirectory = vi.fn(async () => '/native/project')
+  runtime.ctx.provide('uiWorkspace', { pickDirectory })
+  await runtime.mount({ inject, apply })
+  const onPicked = vi.fn()
+  await runtime.root.declare({}, ({ renderFactorySlot }: PropsRuntime<'root'> & PropsRenderFactories) => (
+    <>{renderFactorySlot('workspace.directoryFlow', owner({ onPicked }))}</>
+  ))
+  runtime.renderRoot()
+  await waitFor(() => { expect(onPicked).toHaveBeenCalledWith('/native/project') })
+  expect(pickDirectory).toHaveBeenCalledOnce()
+  await runtime.dispose()
 })

@@ -1,6 +1,13 @@
-- heading "Team Space" [level=1]
-- paragraph: Only content explicitly published by members
-- button "Spaces and members"
+- heading "DeepSeek Harness 团战版" [level=1]
+- paragraph: 让三至四名成员与各自 Codex 围绕同一项目共享经过确认的 Context、任务与产物。
+- region "My team":
+  - article "蓝天 · 产品 · Online": 蓝 蓝天
+  - article "研发 · 研发 · Offline": 研 研发
+  - article "测试 · 测试 · Online": 测 测试
+  - article "UI · UI · Offline": U UI
+  - text: 2 members online
+- button "Invite a colleague"
+- button "Back to my DeepSeek"
 - navigation "Team Space":
   - button "Files"
   - button "Meeting notes"
@@ -8,7 +15,8 @@
   - button "Review"
 - button "Refresh"
 - text: This is an existing local space. For collaboration across networks, create a server project or join with an invitation.
-- button "Start a project"
+- button "Start a team project"
+- group: How do we complete a project together?
 - region "Local simulation":
   - strong: Local simulation
   - text: Acting member

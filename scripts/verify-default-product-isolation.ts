@@ -29,6 +29,7 @@ const RUNTIME_SECTIONS = ['dependencies', 'optionalDependencies', 'peerDependenc
 
 interface Manifest {
   name: string
+  private?: boolean
   dependencies?: Record<string, string>
   optionalDependencies?: Record<string, string>
   peerDependencies?: Record<string, string>
@@ -99,6 +100,8 @@ export function verifyDefaultProductIsolation(root: string): ProductIsolationRes
   let webPluginCount = 0
   const isExperimental = (pkg: Package): boolean => pkg.manifest.name.startsWith(EXPERIMENTAL_PREFIX)
     || display(pkg.directory).startsWith('packages/experimental/')
+  const isTeamDistribution = (pkg: Package): boolean => display(pkg.directory) === 'apps/macos'
+    && pkg.manifest.name === '@deepseek-ai/dsh-macos-team-battle-app' && pkg.manifest.private === true
   const add = (pkg: Package, origin: string): void => {
     if (isExperimental(pkg)) {
       failures.push(`${origin} -> ${pkg.manifest.name}: default product must not include experimental packages`)
@@ -164,7 +167,7 @@ export function verifyDefaultProductIsolation(root: string): ProductIsolationRes
       const target = resolveSource(local)
       const resolved = target ?? local
       const owner = directories.get(resolved) ?? ownerOf(resolved)
-      if (owner !== undefined && isExperimental(owner)) add(owner, display(path))
+      if (owner !== undefined && (isExperimental(owner) || isTeamDistribution(owner))) add(owner, display(path))
       if (/cordis[^/]*\.ya?ml$/.test(basename(resolved))) scanConfig(resolved)
       if (followLocal && target !== undefined) scanSource(target, true)
     }
@@ -228,6 +231,9 @@ export function verifyDefaultProductIsolation(root: string): ProductIsolationRes
 
   for (const pkg of packages.values()) {
     const path = display(pkg.directory)
+    // The separate Team Battle distribution is not an upstream default installation.
+    // An edge from a default package still traverses this package and checks its dependencies.
+    if (isTeamDistribution(pkg)) continue
     if (path.startsWith('apps/') || path === 'python/sdk-runtime') add(pkg, path)
   }
   if (selection !== undefined) {

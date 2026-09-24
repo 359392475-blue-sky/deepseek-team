@@ -24,14 +24,14 @@ The product has three layers:
 | Agent relay layer | Authoritative for message delivery records | Exchanges approved structured updates, tasks, context, artifacts, and receipts with each participant's personal agent without claiming ownership of private conversation history. |
 | Game projection layer | Derived only | Converts accepted project events into authoritative boss health and phases, and each de-duplicated query into one special-weapon grant that affects only the leisure game; it never changes project truth by itself. |
 
-The Team Board manages shared work, project context, and acceptance state. When a user publishes an artifact for collaboration, the project space stores an immutable, verifiable, access-controlled version copy with provenance so later people and agents can continue without requiring the original author to be online. Git, pull requests, CI, design systems, or document systems may remain the artifact's origin and full-history owner. Human users remain accountable for what their agents publish or execute.
+The Team Board manages shared work, project context, and acceptance state. When a user publishes an artifact for collaboration, the project space stores an immutable, verifiable, access-controlled version copy with source references so later people and agents can continue without requiring the original author to be online. Git, pull requests, CI, design systems, or document systems may remain the artifact's origin and full-history owner. Human users remain accountable for what their agents publish or execute.
 
 ## Product principles
 
 - **Share continuable project context, not raw private conversation by default.** Personal transcripts stay local unless a user explicitly selects excerpts for sharing. The normal outbound unit is a reviewed Collaboration Update, Context Packet, task update, decision, blocker, change log, or original artifact.
 - **Conversation curation must not beautify facts.** A connector turns a selected conversation into a collaboration digest that distinguishes confirmed facts, human judgment, agent suggestions, disagreement, failed attempts, and unresolved questions. Curation may improve readability, but it must not erase conflict, change conclusions, or present speculation as a decision.
-- **Preserve human judgment and original artifacts separately.** Human acceptance, rejection, trade-offs, and non-overridable constraints are recorded on their own. Documents, designs, code, test reports, and logs remain unchanged with provenance, version, and verification information rather than being replaced by a summary.
-- **A complete project view is navigable, not one unconditional prompt injection.** Team members and agents can browse the full provenance graph, versions, and upstream or downstream relationships. Delivery to a personal agent assembles a task-scoped subset and links to the complete retrievable project space, avoiding overlong, stale, or unauthorized context.
+- **Preserve human judgment and original artifacts separately.** Human acceptance, rejection, trade-offs, and non-overridable constraints are recorded on their own. Documents, designs, code, test reports, and logs remain unchanged with source, version, and verification information rather than being replaced by a summary.
+- **A complete project view is navigable, not one unconditional prompt injection.** Team members and agents can browse the full graph of source references, versions, and upstream or downstream relationships. Delivery to a personal agent assembles a task-scoped subset and links to the complete retrievable project space, avoiding overlong, stale, or unauthorized context.
 - **Bidirectional does not mean silent remote control.** The board can deliver tasks and context to a personal agent, but waking or instructing that agent requires a separate, visible permission and receipt.
 - **Evidence advances the project.** Conversation volume, token usage, code lines, and time online never determine progress. Accepted weighted deliverables and victory criteria do.
 - **Queries reward the game without claiming progress.** Each successfully sent, de-duplicated user query grants exactly one special weapon, such as a screen-clearing bomb or temporary enhanced fire. Ordinary movement, automatic fire, kills, score, and task starts never grant these weapons, and special weapons never change project completion or project-boss health.
@@ -49,9 +49,9 @@ Each personal collaboration loop enters the project space as one continuable `Co
 
 The connector first creates a `ShareDraft` on the member's device from a user-selected conversation range, checks for sensitive information, and anchors claims to sources. The user can edit, remove, redact, choose recipients, set sensitivity and expiry, and then publish to the project space. The interface must distinguish “AI-organized draft,” “confirmed by the person,” and “edited by the person before publication.” A project owner or administrator cannot bypass the member to read the complete private conversation.
 
-The project space organizes Collaboration Updates, tasks, decisions, artifacts, reviews, and corrections as a versioned provenance graph and derives a current `ProjectContextSnapshot`. The snapshot answers the project objective, current state, confirmed judgments, reusable results, active work, unresolved questions, blockers, next recipient, and recent changes. A downstream role can inspect sources, take over one item, send task-scoped context to a personal agent, and write the result back as a derived version.
+The project space organizes Collaboration Updates, tasks, decisions, artifacts, reviews, and corrections as a versioned graph of source references and derives a current `ProjectContextSnapshot`. The snapshot answers the project objective, current state, confirmed judgments, reusable results, active work, unresolved questions, blockers, next recipient, and recent changes. A downstream role can inspect sources, take over one item, send task-scoped context to a personal agent, and write the result back as a derived version.
 
-A published Collaboration Update cannot be silently rewritten. A correction creates a new version, marks the old version as superseded, and notifies members who received or continued from the old version. Missing provenance, stale content, version conflicts, unauthorized references, and inaccessible artifacts appear as explicit breaks rather than masquerading as synchronized current facts.
+A published Collaboration Update cannot be silently rewritten. A correction creates a new version, marks the old version as superseded, and notifies members who received or continued from the old version. Missing source references, stale content, version conflicts, unauthorized references, and inaccessible artifacts appear as explicit breaks rather than masquerading as synchronized current facts.
 
 ## Users and roles
 
@@ -78,7 +78,7 @@ The first model contains these durable entities:
 - `SourceAnchor`: a reference to the originating tool, conversation, selected turns or time range, author, generation time, visibility, and digest version without requiring the central service to store the complete source text.
 - `ContextPacket`: a curated summary with source references, audience, sensitivity, version, freshness, decisions, blockers, and requested collaboration.
 - `ProjectContextSnapshot`: a navigable project-wide view derived from the current valid updates, tasks, decisions, artifacts, reviews, and corrections, with task- and role-scoped assembly for delivery.
-- `Artifact`: an immutable content version of a file, commit snapshot, test report, design, document, or other deliverable, including provenance, content hash, media type, size, access controls, retention state, and derived previews while an external system may retain authoritative history.
+- `Artifact`: an immutable content version of a file, commit snapshot, test report, design, document, or other deliverable, including source references, content hash, media type, size, access controls, retention state, and derived previews while an external system may retain authoritative history.
 - `ReviewDecision`: an acceptance, rejection, change request, or reopen action tied to evidence and an accountable actor.
 - `RelayMessage` and `DeliveryReceipt`: outbound or inbound collaboration content with delivery, acknowledgement, retry, and expiry state.
 - `AuditEvent`: an append-only record of human, agent, connector, and system actions with actor, origin, time, trace id, and idempotency key.
@@ -117,12 +117,12 @@ The board records queued, delivered, acknowledged, failed, rejected, and expired
 ## Information architecture
 
 1. **Personal Workbench** is the default first screen. The fixed left navigation needs only clear **Conversation** and **Team** entries. The main area fuses the current user's private Codex conversation with a genuinely playable airplane game. The first screen keeps only the transcript, composer, agent state, battlefield, lives and score, special-weapon slot, and necessary controls. It does not expand team cards, a task board, a Context graph, or a project dashboard.
-2. The **Team** tab shows other members and their personal agents' work status and contains the shared team cloud space. That space then organizes the Project Lobby, project context, tasks, artifacts, reviews, decisions, blockers, provenance versions, and audit history. Private conversation does not appear there automatically; only Collaboration Updates, judgments, and artifacts that the user explicitly publishes are visible.
+2. The **Team** tab shows other members and their personal agents' work status and contains the shared team cloud space. That space then organizes the Project Lobby, project context, tasks, artifacts, reviews, decisions, blockers, source versions, and audit history. Private conversation does not appear there automatically; only Collaboration Updates, judgments, and artifacts that the user explicitly publishes are visible.
 3. **My Relay Inbox** shows tasks and context sent to the user's agents, Share Drafts awaiting user approval, failed deliveries, receipts, stale-version warnings, and connector status.
 4. **Connections and Permissions** manages agent bindings, capabilities, visibility rules, and separate grants for reading conversations, creating drafts, publishing updates, receiving tasks, waking an agent, executing work, revocation, and audit history.
-5. **Raid Archive** preserves final artifacts, accepted criteria, key judgments, reusable Context Packets, the provenance graph, battle recap, and project export.
+5. **Raid Archive** preserves final artifacts, accepted criteria, key judgments, reusable Context Packets, the graph of source references, battle recap, and project export.
 
-The first-version Personal Workbench uses the [Unified Flight Deck](../../../../apps/web/prototypes/team-battle-flight/concepts/chat-game-v3/unified-flight-deck.png) as its selected visual framework. The Team page uses the confirmed [Team Space direction](../../../../apps/web/prototypes/team-battle-flight/concepts/chat-game-v3/team-space-page.png): a member-and-agent status rail, task work area, shared Context and artifact library, review actions, activity, versions, and provenance. Neither direction may move these Team-space functions back onto the home screen.
+The first-version Personal Workbench uses the [Unified Flight Deck](../../../../apps/web/prototypes/team-battle-flight/concepts/chat-game-v3/unified-flight-deck.png) as its selected visual framework. The Team page uses the confirmed [Team Space direction](../../../../apps/web/prototypes/team-battle-flight/concepts/chat-game-v3/team-space-page.png): a member-and-agent status rail, task work area, shared Context and artifact library, review actions, activity, versions, and source details. Neither direction may move these Team-space functions back onto the home screen.
 
 ## Game projection
 
@@ -154,8 +154,8 @@ The projection separates `completionPercent` from `bossHealthPercent`, with boss
 - A Codex-first connector plus a versioned generic connector protocol for future agent tools.
 - Bidirectional structured relay with user preview, acknowledgement, retry, expiry, and de-duplication.
 - Share Drafts generated from selected personal conversations, structured conversation digests, human judgments, source anchors, corrections, supersession, and a current Project Context Snapshot.
-- Context Packets, immutable and verifiable artifact versions, provenance, access controls, derived previews, evidence, review decisions, change logs, and an append-only audit history.
-- Task- and role-scoped Context assembly with a pre-delivery preview of content, provenance, versions, and private information that will not be sent to a personal Codex.
+- Context Packets, immutable and verifiable artifact versions, source references, access controls, derived previews, evidence, review decisions, change logs, and an append-only audit history.
+- Task- and role-scoped Context assembly with a pre-delivery preview of content, source references, versions, and private information that will not be sent to a personal Codex.
 - Near-real-time Raid Room updates without manual refresh.
 - A default first screen that places the personal Codex conversation beside the airplane game, with a left-side **Team** tab for member status and the shared team cloud space.
 - Content-free, de-duplicated Query Pulses from Codex, with each distinct event id granting one screen-clearing bomb or temporary enhanced-fire weapon without storing query text or changing progress.
@@ -168,7 +168,7 @@ The projection separates `completionPercent` from `bossHealthPercent`, with boss
 - Automatic upload or centralized full-text indexing of complete private agent transcripts, or merger of personal agent memory.
 - Silent remote command execution, unrestricted agent wakeup, or a connector with one all-powerful permission.
 - Support for every agent product in the first release.
-- Replacement of the complete history and original workflows of Git, pull requests, CI, design tools, or document systems. The project space stores only collaboration copies and provenance that a user deliberately publishes.
+- Replacement of the complete history and original workflows of Git, pull requests, CI, design tools, or document systems. The project space stores only collaboration copies and source references that a user deliberately publishes.
 - Progress or performance scoring based on messages, tokens, code lines, online time, or individual damage rankings.
 - Autonomous agent approval, code merge, deployment, publication, payment, or final project acceptance.
 - A full game economy with equipment, currency, levels, competitive rankings, or pay-to-progress mechanics.
@@ -177,7 +177,7 @@ The projection separates `completionPercent` from `bossHealthPercent`, with boss
 ## MVP success signals
 
 - Three or four members can complete one “task → person-and-agent work → publish Collaboration Update and artifact → downstream handoff → human review” loop without another meeting or verbal restatement of context that the project already records.
-- A member returning after time away can recover the project-wide view from key changes, provenance, and versions, and send the selected task context to a personal Codex to continue.
+- A member returning after time away can recover the project-wide view from key changes, source references, and versions, and send the selected task context to a personal Codex to continue.
 - Every published material judgment has a confirming person and source anchor, every stored artifact version has a content hash, and the count of complete private conversations uploaded without user confirmation is zero.
 - The system can measure Share Draft-to-publication time, delivery success, receipt acknowledgement, requests for more context, digest correction rate, and stale Context count to improve collaboration quality rather than evaluate individual performance.
 - Users can correctly distinguish query rewards, leisure-game state, and project progress: only a new de-duplicated query grants a special weapon, game score remains recreation, and only accepted work advances real progress.
@@ -199,14 +199,14 @@ The current Harness Web host is a single-user local service. Session logs, proje
 | Initial deployment | Publicly reachable under a dedicated `lowpower.me` subdomain, with invitation-only access for the first team | Internet deployment, authentication, TLS, tenant isolation, operations, abuse controls, and recovery are release requirements even before public signup exists. The exact hostname remains to be selected. |
 | Project authority | The board owns tasks, criteria, reviews, and progress; external systems own original evidence | The board can route work and decide completion without replacing Git, pull requests, CI, design tools, or documents. |
 | Context contribution unit | Publish a structured conversation digest, human judgment, and original artifact as three peer layers; raw conversation stays local by default | The team inherits both process and judgment while retaining the unchanged artifact for verification. Connectors need local curation, source anchoring, and redaction. |
-| Sharing consent | Preview the Collaboration Update, audience, provenance, and artifacts before publication; pre-approval must be scoped to a project, payload, and sensitivity | A connector cannot mirror complete conversations automatically, and a project owner cannot bypass a member to read private conversations. |
-| Artifact handling | The project space stores a deliberately published immutable version copy, hash, provenance, and access rules while external tools retain full history | Later people and agents can consume the project artifact directly and still trace it to Git, CI, design, or document origins. |
+| Sharing consent | Preview the Collaboration Update, audience, source references, and artifacts before publication; pre-approval must be scoped to a project, payload, and sensitivity | A connector cannot mirror complete conversations automatically, and a project owner cannot bypass a member to read private conversations. |
+| Artifact handling | The project space stores a deliberately published immutable version copy, hash, source references, and access rules while external tools retain full history | Later people and agents can consume the project artifact directly and still trace it to Git, CI, design, or document origins. |
 | Board-to-agent authority | Inbox delivery is normal; wake-and-run is a separate opt-in permission with confirmation | The first connector cannot silently convert shared content into remote execution. |
 | First connector | Implement Codex first while versioning a provider-neutral protocol | The first playable release targets friends who already use Codex while preserving a later path to other agent tools. |
 | Query rewards and boss damage | One de-duplicated query grants one special weapon; only accepted weighted evidence creates authoritative project-boss damage | The user gets a clear game reward while waiting for the agent, while message volume still cannot falsify project completion. |
 | Default first screen | A fused personal Codex conversation and playable airplane game is the default; team context, member status, and the shared team cloud space live under the left-side **Team** tab | The product idea becomes understandable pages and actions instead of placing every context, state, and function on one screen. |
 | First-screen visual layout | Use the integrated [Unified Flight Deck](../../../../apps/web/prototypes/team-battle-flight/concepts/chat-game-v3/unified-flight-deck.png) direction: a 101 px navigation rail, private conversation panel, and playable game field on one continuous white and blue-gray paper canvas | The first implementation has a stable spatial hierarchy while Team data remains off the home screen. |
-| Team-tab information architecture | Implement the [Team Space visual direction](../../../../apps/web/prototypes/team-battle-flight/concepts/chat-game-v3/team-space-page.png) as a functional member-status, task, Context, artifact, review, activity, version, and provenance view | The selected page separates shared project operations from the private Conversation-and-game home screen while making handoff and review executable. |
+| Team-tab information architecture | Implement the [Team Space visual direction](../../../../apps/web/prototypes/team-battle-flight/concepts/chat-game-v3/team-space-page.png) as a functional member-status, task, Context, artifact, review, activity, version, and source-details view | The selected page separates shared project operations from the private Conversation-and-game home screen while making handoff and review executable. |
 
 ## Remaining decisions
 
@@ -220,11 +220,11 @@ The current Harness Web host is a single-user local service. Session logs, proje
 
 **One central agent for the whole team.** Rejected because it collapses human accountability, private working context, tool permissions, and role ownership into one conversation. Team Battle instead coordinates independently owned agents.
 
-**Mirror every personal transcript into a shared chat.** Rejected because raw conversation contains unrelated and sensitive material, creates excessive context, and still lacks explicit tasks, decisions, reviews, and artifact provenance.
+**Mirror every personal transcript into a shared chat.** Rejected because raw conversation contains unrelated and sensitive material, creates excessive context, and still lacks explicit tasks, decisions, reviews, and artifact sources.
 
 **Share only the final artifact without process or judgment.** Rejected because a downstream role would see the result without its objective, constraints, trade-offs, failed attempts, or unresolved questions and would still need a meeting or the original author to continue.
 
-**Concatenate every digest into one ever-growing project prompt.** Rejected because complete visibility does not mean injecting all history on every turn. An unbounded prompt mixes stale, conflicting, unauthorized, and irrelevant material. Team Battle keeps a navigable project provenance graph and assembles versioned, task-scoped Context.
+**Concatenate every digest into one ever-growing project prompt.** Rejected because complete visibility does not mean injecting all history on every turn. An unbounded prompt mixes stale, conflicting, unauthorized, and irrelevant material. Team Battle keeps a navigable graph of project source references and assembles versioned, task-scoped Context.
 
 **Use a conventional dashboard without game feedback.** Rejected because cooperative battle feedback is part of the requested product identity. The factual board remains available, while game state is a traceable projection rather than a replacement.
 
@@ -254,7 +254,7 @@ The current Harness Web host is a single-user local service. Session logs, proje
 
 ## Risks
 
-- Structured digests can omit nuance, erase disagreement, or misstate human judgment. Facts, judgments, agent suggestions, and failed attempts must remain distinct, and every digest needs provenance, version, freshness, and a correction path.
+- Structured digests can omit nuance, erase disagreement, or misstate human judgment. Facts, judgments, agent suggestions, and failed attempts must remain distinct, and every digest needs source references, version, freshness, and a correction path.
 - Personal conversations can contain secrets, personal data, unreleased code, or unrelated material; preview, sensitivity, recipient, redaction, retention, export, and deletion controls are required.
 - Board-to-agent content can carry prompt injection or malicious artifact links; connectors must treat it as untrusted input and preserve local permission checks.
 - Human, agent, connector, and system identities can be confused; audit events must distinguish them and forbid agent actions from appearing as human actions.
@@ -262,7 +262,7 @@ The current Harness Web host is a single-user local service. Session logs, proje
 - Reconnect and retries can duplicate tasks, reviews, or damage; stable ids, idempotency, acknowledgement, and replay rules are required.
 - Central context can become stale or unmanageably large; packets need audience, expiry, supersession, and task-scoped retrieval.
 - Original artifact copies can contain malicious files, secrets, personal information, unauthorized code, or copyrighted material. Uploads need permissions, type and size limits, scanning, hashing, retention, deletion, and access audits.
-- Task-scoped Context assembly can leak information across projects or create recursive summary drift. Retrieval must enforce project and audience permissions, retain the provenance chain, and prevent summaries with no new source from being treated repeatedly as new facts.
+- Task-scoped Context assembly can leak information across projects or create recursive summary drift. Retrieval must enforce project and audience permissions, retain the chain of source references, and prevent summaries with no new source from being treated repeatedly as new facts.
 - Game feedback can trivialize serious work or become performance surveillance; individual damage rankings stay out of scope and evidence remains primary.
 - Query weapon rewards can encourage message spam or expose work patterns. Query Pulses contain no content or performance score, use short retention, and support per-user opt-out. The interface may coalesce visual notices but must not merge the weapon entitlement of distinct event ids.
 - Weighted criteria can be badly configured or manipulated; project owners need transparent totals, review ownership, reopen behavior, and change history.

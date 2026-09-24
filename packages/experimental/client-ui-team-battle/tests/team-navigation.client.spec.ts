@@ -65,3 +65,38 @@ describe('Team Space root navigation', () => {
     expect(navigation.getSnapshot()).toBe(true)
   })
 })
+
+
+describe('team project form routing', () => {
+  it('reopens the selected form in the existing main panel and returns to the private conversation', () => {
+    const showPanel = vi.fn()
+    const navigation = createTeamSpaceNavigation(false, showPanel)
+    navigation.open('create')
+    expect(navigation.getSelection()).toMatchObject({ page: 'create' })
+    const first = navigation.getSelection().revision
+    navigation.open('join')
+    expect(navigation.getSelection()).toMatchObject({ page: 'join', revision: first + 1 })
+    navigation.close()
+    expect(showPanel).toHaveBeenLastCalledWith(false)
+    expect(navigation.getSnapshot()).toBe(false)
+  })
+})
+
+
+describe('one-time project forms', () => {
+  it.each(['create', 'join'] as const)('consumes %s without reopening it after returning to Team Space', (page) => {
+    const navigation = createTeamSpaceNavigation(false)
+    navigation.open(page)
+    const request = navigation.getSelection()
+    expect(request.page).toBe(page)
+    navigation.consumePage(request.revision)
+    expect(navigation.getSelection()).toEqual({ revision: request.revision })
+    navigation.close()
+    navigation.reflect(true)
+    expect(navigation.getSelection().page).toBeUndefined()
+    navigation.open(page)
+    expect(navigation.getSelection().page).toBe(page)
+    navigation.consumePage(request.revision)
+    expect(navigation.getSelection().page).toBe(page)
+  })
+})

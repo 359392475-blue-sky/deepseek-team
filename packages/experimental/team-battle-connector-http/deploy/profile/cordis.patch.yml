@@ -43,6 +43,7 @@
         maxBodyBytes: 262144
         maxNetworkBodyBytes: 8388608
         networkRequestTimeoutMs: 15000
+        invitationDownloadUrl: https://lowpower.me/team-battle-downloads/
         hostedServer:
           host: 127.0.0.1
           port: 18864

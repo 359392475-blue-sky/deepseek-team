@@ -82,6 +82,8 @@ Send 和 Stop 按钮禁用时不显示提示气泡，轮次结束后由 Stop 切
 
 当会话被其他写句柄占用时，发送失败的 toast 提示用户退出其他正在运行的 DSH 后重试。
 
+部署可通过 `conversation.hero.badge` 替换首页徽标，并通过 `conversation.hero.actions` 添加首页操作；没有替换项时默认徽标仍为预览版。Session 标题栏在空白和已有消息的 Session 中均渲染 `conversation.session.header.collaboration`，因此项目成员可在首条消息之前显示。
+
 <a id="temporary-composer-entries"></a>
 ## 临时 composer entry
 

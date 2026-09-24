@@ -1,6 +1,8 @@
 /** Root navigation keeps the shared team page available without a private session. */
 
-import { useEffect, useRef, useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
+import type { TeamBattleTeamSummary } from '@deepseek-ai/dsh-experimental-team-battle/client'
+import type { TeamDirectoryPage } from './TeamDirectory.tsx'
 import { IconAgentPresetOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
@@ -14,16 +16,29 @@ import css from './RootTeamSpace.module.css'
 export interface TeamSpaceNavigation {
   readonly subscribe: (listener: () => void) => () => void
   readonly getSnapshot: () => boolean
-  readonly open: () => void
+  readonly getSelection: () => TeamNavigationSelection
+  readonly select: (team: TeamBattleTeamSummary, resetPage?: boolean) => void
+  readonly open: (page?: TeamDirectoryPage) => void
   readonly close: () => void
+  readonly reflect: (opened: boolean) => void
+  readonly consumePage: (revision: number) => void
+}
+
+/** Explicit team and form selected through shell navigation. */
+export interface TeamNavigationSelection {
+  readonly teamId?: TeamBattleTeamSummary['id']
+  readonly page?: TeamDirectoryPage
+  readonly revision: number
 }
 
 /**
- * Create one mount-owned navigation state, optionally opening a team deep link.
+ * Create mount-owned team selection without changing the private Session.
  * @param initialOpen - whether the initial route selects the team page.
- * @returns navigation callbacks and a React external store.
+ * @param showPanel - callback selecting the existing shell main column.
+ * @returns navigation callbacks and reactive team selection.
  */
-export function createTeamSpaceNavigation(initialOpen: boolean): TeamSpaceNavigation {
+export function createTeamSpaceNavigation(initialOpen: boolean, showPanel: (opened: boolean) => void = () => {}): TeamSpaceNavigation {
+  let selection: TeamNavigationSelection = { revision: 0 }
   const routeOpened = (): boolean => {
     if (typeof window === 'undefined') return initialOpen
     const url = new URL(window.location.href)
@@ -35,6 +50,7 @@ export function createTeamSpaceNavigation(initialOpen: boolean): TeamSpaceNaviga
     const next = routeOpened()
     if (next === opened) return
     opened = next
+    showPanel(next)
     for (const listener of listeners) listener()
   }
   const setOpen = (next: boolean): void => {
@@ -65,53 +81,57 @@ export function createTeamSpaceNavigation(initialOpen: boolean): TeamSpaceNaviga
       }
     },
     getSnapshot: () => opened,
-    open: () => { setOpen(true) },
-    close: () => { setOpen(false) },
+    getSelection: () => selection,
+    select: (team, resetPage = false) => {
+      selection = { teamId: team.id, revision: selection.revision + (resetPage ? 1 : 0) }
+      for (const listener of listeners) listener()
+    },
+    open: (page) => {
+      if (page !== undefined) {
+        selection = { ...selection, page, revision: selection.revision + 1 }
+        for (const listener of listeners) listener()
+      }
+      setOpen(true)
+      showPanel(true)
+    },
+    close: () => { setOpen(false); showPanel(false) },
+    reflect: setOpen,
+    consumePage: (revision) => {
+      if (selection.revision !== revision || selection.page === undefined) return
+      const { page: _page, ...remaining } = selection
+      selection = remaining
+      for (const listener of listeners) listener()
+    },
   }
 }
 
-type RootTeamSpaceProps = PropsRuntime<'shell.overlay'> & PropsLocale<typeof NS>
+type RootTeamSpaceProps = PropsRuntime<'main'> & PropsLocale<typeof NS>
   & TeamBattleInjected & { navigation: TeamSpaceNavigation; journey: TeamJourneyInjected }
 
 /**
- * Render the team page above the application while preserving the private conversation.
- * @param props - root navigation, translated copy, and authenticated Remote actions.
- * @returns the shared team page, or no overlay when the conversation is selected.
+ * Render Team Space inside the existing application's main column.
+ * @param props - selection, translated copy, and authenticated Remote actions.
+ * @returns the shared project page while keeping the shell sidebar available.
  */
 export function RootTeamSpace({ navigation, ...props }: RootTeamSpaceProps) {
-  const opened = useSyncExternalStore(navigation.subscribe, navigation.getSnapshot)
-  const page = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!opened || page.current === null) return
-    const overlay = page.current.closest('[data-shell-overlay]')
-    const previousFocus = document.activeElement
-    const covered = Array.from(overlay?.parentElement?.children ?? [])
-      .filter((element): element is HTMLElement => element instanceof HTMLElement && element !== overlay)
-      .map(element => ({ element, inert: element.inert }))
-    for (const { element } of covered) element.inert = true
-    page.current.focus()
-    return () => {
-      for (const { element, inert } of covered) element.inert = inert
-      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus()
-    }
-  }, [opened])
-  return opened ? <div ref={page} tabIndex={-1} className={css.page}>
-    <TeamSpaceScreen {...props} identity="team-space-root" onConversation={navigation.close} />
-  </div> : null
+  const selection = useSyncExternalStore(navigation.subscribe, navigation.getSelection)
+  useEffect(() => { navigation.consumePage(selection.revision) }, [navigation, selection.revision])
+  return <div className={css.page}>
+    <TeamSpaceScreen key={selection.revision} {...props} identity="team-space-root"
+      {...selection.teamId === undefined ? {} : { selectedTeamId: selection.teamId }}
+      {...selection.page === undefined ? {} : { initialPage: selection.page }}
+      onSelectTeam={navigation.select} onConversation={navigation.close} />
+  </div>
 }
 
-type TeamSpaceEntryProps = PropsRuntime<'sidebar.footer.action'> & PropsLocale<typeof NS>
-  & { navigation: TeamSpaceNavigation }
+type TeamSpaceEntryProps = PropsRuntime<'sidebar.panellist'> & { readonly navigation: TeamSpaceNavigation }
 
 /**
- * Make team navigation available even when the current workspace has no session.
- * @param props - sidebar width, translations, and the shared navigation state.
- * @returns the team navigation button.
+ * Supply the team icon to the shell-owned navigation row near New Session.
+ * @param props - shell icon geometry.
+ * @returns the team project icon.
  */
-export function TeamSpaceEntry({ navigation, wide, t }: TeamSpaceEntryProps) {
-  return (
-    <button type="button" className={css.entry} data-team-space-entry="" title={t('view.team')} aria-label={t('view.team')} onClick={navigation.open}>
-      <IconAgentPresetOutlineRegular size={20} />{wide && <span>{t('view.team')}</span>}
-    </button>
-  )
+export function TeamSpaceEntry({ size, active, navigation }: TeamSpaceEntryProps) {
+  useEffect(() => { navigation.reflect(active) }, [active, navigation])
+  return <span data-team-space-entry=""><IconAgentPresetOutlineRegular size={size} /></span>
 }

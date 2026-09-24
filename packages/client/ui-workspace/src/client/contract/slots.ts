@@ -94,6 +94,10 @@ export const menuOpenStateFactory: SlotHookFactory<'sidebar.workspaces.session.m
   (_standard, state) => () => state
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface SlotFactoryMap {
+    /** Reuse the composed native or browse directory chooser; the caller owns admission and errors. */
+    'workspace.directoryFlow': { scope: 'root'; props: DirectoryFlowOwnerProps }
+  }
   interface SlotMap {
     /** Directory-flow hole under the conversation empty-state picker (declared by the WorkspacePicker entry). */
     'conversation.hero.workspace.directoryFlow': { kind: 'single'; scope: 'root'; owner: DirectoryFlowOwnerProps }

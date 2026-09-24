@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { TeamBattleError, TeamBattleMemberId, TeamBattleProjectId, type TeamBattleTeamSummary, type TeamBattleService } from '@deepseek-ai/dsh-experimental-team-battle'
+import { TeamBattleError, TeamBattleNameConflictError, TeamBattleMemberId, TeamBattleProjectId, type TeamBattleTeamSummary, type TeamBattleService } from '@deepseek-ai/dsh-experimental-team-battle'
 import { TeamNetwork } from '../src/network.ts'
 import { normalizeTeamServerUrl } from '../src/network-url.ts'
 
@@ -60,6 +60,34 @@ describe('Team-only network', () => {
     await expect(fetch(`${origin}/call`)).rejects.toThrow()
   })
 
+  it('serves read-only invitation guidance without sending fragments or running team operations', async () => {
+    const { network, domain, authorize } = fixture()
+    const origin = await serving(network)
+    const response = await fetch(`${origin}/#team=project-a&token=private-invitation`)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(response.headers.get('content-security-policy')).toContain("default-src 'none'")
+    expect(response.headers.get('content-security-policy')).toContain("script-src 'sha256-")
+    const html = await response.text()
+    expect(html).toContain('navigator.clipboard.writeText(invitationUrl)')
+    expect(html).toContain('textContent=')
+    expect(html).toContain('通过邀请链接加入')
+    expect(html).toContain('Mac 安装包不能用于 Windows')
+    expect(html).not.toContain('private-invitation')
+    expect(html).not.toContain('innerHTML')
+    expect(html).not.toContain('fetch(')
+    expect(authorize).not.toHaveBeenCalled()
+    expect(domain.createHostedTeam).not.toHaveBeenCalled()
+    expect(domain.acceptInvite).not.toHaveBeenCalled()
+    expect(domain.dispatchAuthenticated).not.toHaveBeenCalled()
+    expect((await fetch(`${origin}/?token=private-invitation`)).status).toBe(404)
+    const head = await fetch(`${origin}/`, { method: 'HEAD' })
+    expect(head.status).toBe(200)
+    expect(head.headers.get('content-length')).toBe(String(Buffer.byteLength(html)))
+    expect(await head.text()).toBe('')
+  })
+
   it('requires the deployment code before creating a project and rejects forged fields', async () => {
     const { network, domain } = fixture()
     const origin = await serving(network)
@@ -80,7 +108,7 @@ describe('Team-only network', () => {
     const body = { name: 'Shared project', goal: 'Deliver', memberName: 'Owner', memberRole: 'Product', ownerMemberToken: 'device-token' }
     await expect(network.request({ origin, path: 'create', body, bearer: 'invalid-code' })).rejects.toMatchObject({
       isDSHRemoteError: true, code: 'team-battle/server-auth-required', details: { httpStatus: 401 },
-      message: 'Team server refused project creation. Check the server address and ask its administrator for the current creation code.',
+      message: 'Team project creation is unavailable. Ask the administrator to restore the configured Team service connection.',
     })
     expect(authorize).toHaveBeenCalledTimes(1)
     expect(domain.createHostedTeam).not.toHaveBeenCalled()
@@ -103,7 +131,7 @@ describe('Team-only network', () => {
     const origin = `http://127.0.0.1:${String(address.port)}`
     await expect(network.request({ origin, path: 'create', body: {}, bearer: 'invalid-code' })).rejects.toMatchObject({
       code: 'team-battle/server-auth-required', details: { httpStatus: 401 },
-      message: 'Team server refused project creation. Check the server address and ask its administrator for the current creation code.',
+      message: 'Team project creation is unavailable. Ask the administrator to restore the configured Team service connection.',
     })
     await expect(network.request({ origin, path: 'call', body: {}, bearer: 'invalid-code' })).rejects.toThrow(
       'Team server rejected the request (HTTP 401)',
@@ -172,6 +200,53 @@ describe('Team-only network', () => {
     vi.mocked(domain.dispatchAuthenticated).mockRejectedValueOnce(new TeamBattleError('private server diagnostic', 'TEAM_BATTLE_REJECTED'))
     await expect(network.request(request)).rejects.toThrow('Team server rejected the request (HTTP 403)')
     expect(domain.dispatchAuthenticated).toHaveBeenCalledTimes(2)
+  })
+
+  it('returns a name collision as HTTP 409 and preserves its safe browser Remote error', async () => {
+    const { network, domain } = fixture()
+    const origin = await serving(network)
+    const failure = new TeamBattleNameConflictError()
+    failure.message = 'private path and credential diagnostic'
+    vi.mocked(domain.dispatchAuthenticated).mockRejectedValue(failure)
+    const body = { teamId: 'project-a', method: 'publishFile', input: {} }
+    const response = await post(origin, '/call', body, 'device-token')
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ error: 'Team file-space name conflict', code: 'team-battle/name-conflict' })
+    await expect(network.request({ origin, path: 'call', body, bearer: 'device-token' }))
+      .rejects.toMatchObject({
+        code: 'team-battle/name-conflict', details: { httpStatus: 409 }, isDSHRemoteError: true,
+        message: new TeamBattleNameConflictError().message,
+      })
+    expect(domain.dispatchAuthenticated).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    [409, 'team-battle/name-conflict', true],
+    [403, 'team-battle/name-conflict', false],
+    [409, 'TEAM_BATTLE_ACCESS_DENIED', false],
+    [409, 'unrecognized/server-error', false],
+  ] as const)('accepts only the name-conflict code with HTTP %s (%s)', async (status, code, recognized) => {
+    const { network } = fixture()
+    const server = createServer((_request, response) => {
+      response.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify({
+        code, error: 'private-server-secret', details: { credential: 'private-server-secret' },
+      }))
+    })
+    servers.push(server)
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+    const address = server.address()
+    if (address === null || typeof address === 'string') throw new Error('fixture did not bind')
+    const result = network.request({ origin: `http://127.0.0.1:${String(address.port)}`, path: 'call', body: {}, bearer: 'device-token' })
+    if (recognized) {
+      await expect(result).rejects.toMatchObject({
+        code: 'team-battle/name-conflict', details: { httpStatus: 409 }, isDSHRemoteError: true,
+        message: new TeamBattleNameConflictError().message,
+      })
+      await expect(result).rejects.toHaveProperty('details', { httpStatus: 409 })
+      await expect(result).rejects.not.toThrow('private-server-secret')
+    } else {
+      await expect(result).rejects.toThrow(`Team server rejected the request (HTTP ${String(status)})`)
+    }
   })
 })
 

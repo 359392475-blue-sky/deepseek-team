@@ -261,6 +261,27 @@ describe('Team Battle shared files and delivery', () => {
       .toEqual([])
   })
 
+  it('keeps published bytes when a new version reuses a sibling name and accepts a version folder', async () => {
+    const { ctx } = await harness()
+    const original = await ctx.teamBattle.publishFile(fileRequest())
+    const file = original.files[0]!
+    const conflict = { code: 'team-battle/name-conflict', details: { httpStatus: 409 }, isDSHRemoteError: true }
+    await expect(ctx.teamBattle.publishFile({ ...fileRequest(file.name, 'New version'), versionLabel: 'v1.1' }))
+      .rejects.toMatchObject(conflict)
+    await expect(ctx.teamBattle.createFolder({ name: file.name })).rejects.toMatchObject(conflict)
+    expect(await ctx.teamBattle.space()).toEqual(original)
+    expect((await ctx.teamBattle.readFile({ fileId: file.id })).contentBase64).toBe(fileRequest().contentBase64)
+
+    const folder = (await ctx.teamBattle.createFolder({ name: 'v1.1' })).folders[0]!
+    await expect(ctx.teamBattle.updateSpaceItem({ kind: 'folder', id: folder.id, expectedRevision: 1, action: 'rename', name: file.name }))
+      .rejects.toMatchObject(conflict)
+    const published = await ctx.teamBattle.publishFile({ ...fileRequest(file.name, 'New version'), versionLabel: 'v1.1', parentId: folder.id })
+    expect(published.files).toHaveLength(2)
+    expect(published.files[0]).toEqual(file)
+    expect(published.files[1]).toMatchObject({ name: file.name, parentId: folder.id, versionLabel: 'v1.1' })
+    expect((await ctx.teamBattle.readFile({ fileId: published.files[1]!.id })).contentBase64).toBe(Buffer.from('New version').toString('base64'))
+  })
+
   it('bounds actual decoded bytes and rejects malformed payloads without mutating storage', async () => {
     const { ctx } = await harness(new MemoryMediaPool(), Object.assign({}, CONFIG, { maxFileBytes: 4, maxTotalFileBytes: 6 }))
     await expect(ctx.teamBattle.publishFile(fileRequest('too-big.txt', '12345'))).rejects.toThrow('maxFileBytes')

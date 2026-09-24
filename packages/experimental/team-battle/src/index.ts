@@ -3,17 +3,26 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { TeamBattleDirectory } from './directory.ts'
 import { TeamBattleProject } from './project.ts'
+import { TeamWorkspaceLinks } from './workspace-links.ts'
 import z from '@deepseek-ai/schemastery'
 import { defaults } from './defaults.ts'
-import type { AcceptTeamInviteRequest, AcknowledgeDeliveryRequest, AuthenticatedTeamRequest, ConsumeWeaponRequest, CreateFolderRequest, CreateHostedTeamRequest, CreateTaskRequest, CreateTeamInviteRequest, CreateTeamRequest, CreatedTeamInvite, HeartbeatRequest, JoinRemoteTeamRequest, PublishArtifactRequest, PublishContextRequest, PublishFileRequest, PullDeliveryRequest, ReadFileRequest, ReviewArtifactRequest, RevokeTeamInviteRequest, RevokeTeamMemberRequest, SendFileRequest, SubmitFileRequest, TeamBattleActorRequest, TeamBattleDeliveryPull, TeamBattleDeliveryView, TeamBattleDirectoryView, TeamBattleFileContent, TeamBattleHostingStatus, TeamBattleIngressEvent, TeamBattleIngressReceipt, TeamBattleNetworkTransport, TeamBattleMemberConfig, TeamBattleSpaceView, TeamBattleTeamSummary, TeamBattleView, UpdateSpaceItemRequest, UpdateTaskRequest } from './types.ts'
+import type { BindTeamWorkspaceRequest, TeamBattleWorkspaceLink, AcceptTeamInviteRequest, AcknowledgeDeliveryRequest, AuthenticatedTeamRequest, ConsumeWeaponRequest, CreateFolderRequest, CreateHostedTeamRequest, CreateTaskRequest, CreateTeamInviteRequest, CreateTeamRequest, CreatedTeamInvite, HeartbeatRequest, JoinRemoteTeamRequest, PublishArtifactRequest, PublishContextRequest, PublishFileRequest, PullDeliveryRequest, ReadFileRequest, ReviewArtifactRequest, RevokeTeamInviteRequest, RevokeTeamMemberRequest, SendFileRequest, SubmitFileRequest, TeamBattleActorRequest, TeamBattleDeliveryPull, TeamBattleDeliveryView, TeamBattleDirectoryView, TeamBattleFileContent, TeamBattleHostingStatus, TeamBattleIngressEvent, TeamBattleIngressReceipt, TeamBattleNetworkTransport, TeamBattleMemberConfig, TeamBattleSpaceView, TeamBattleTeamSummary, TeamBattleView, UpdateSpaceItemRequest, UpdateTaskRequest } from './types.ts'
 
 export * from './types.ts'
-export { TeamBattleError, TeamBattleServerAuthError } from './error.ts'
+export { normalizeTeamServerUrl, validateTeamBindHost } from './network-url.ts'
+export { TeamBattleError, TeamBattleNameConflictError, TeamBattleServerAuthError } from './error.ts'
 export { teamBattleIngressEventSchema } from './spec.ts'
 export { teamBattlePullDeliverySchema, teamBattleAcknowledgeDeliverySchema } from './space.ts'
 
 /** Team Battle deployment configuration. */
 export interface Config {
+  /** Fixed shared server used for project creation and invitation admission on this local Host. */
+  readonly sharedServer?: {
+    /** HTTPS server base, or private HTTP address for local tests and deployments. */
+    readonly url: string
+    /** Host credential reference authorizing creation; never returned to the browser. */
+    readonly accessTokenRef: string
+  } | undefined
   /** Maximum hosted and joined teams retained on this device. */
   readonly maxTeams?: number
   /** Maximum retained invitations per hosted team. */
@@ -66,6 +75,10 @@ export interface Config {
 
 /** Schemastery configuration parsed by Cordis before activation. */
 export const Config: z<Config> = z.object({
+  sharedServer: z.union([z.object({
+    url: z.string().required(),
+    accessTokenRef: z.string().role('credential-ref').required(),
+  }), z.const(undefined)]),
   maxTeams: z.number().step(1).min(1).default(16),
   maxInvitesPerTeam: z.number().step(1).min(1).default(64),
   membershipLifetimeHours: z.number().step(1).min(1).default(720),
@@ -121,6 +134,7 @@ export class TeamBattleService extends TypertRemoteService {
   static Config = Config
   private readonly legacy: TeamBattleProject
   private readonly directory: TeamBattleDirectory
+  private readonly links: TeamWorkspaceLinks
 
   /**
    * @param ctx - plugin lifecycle and storage owner.
@@ -130,10 +144,11 @@ export class TeamBattleService extends TypertRemoteService {
     super(ctx, 'teamBattle')
     this.legacy = new TeamBattleProject(ctx, config)
     this.directory = new TeamBattleDirectory(ctx, config, this.legacy)
+    this.links = new TeamWorkspaceLinks(ctx)
   }
 
   /** Open the preserved legacy records and separate multi-team directory. */
-  protected async [Service.init](): Promise<void> { await this.legacy.open(); await this.directory.open() }
+  protected async [Service.init](): Promise<void> { await this.legacy.open(); await this.directory.open(); await this.links.open() }
 
   /**
    * Register the dedicated connector.
@@ -150,6 +165,24 @@ export class TeamBattleService extends TypertRemoteService {
   teams(): Promise<TeamBattleDirectoryView> { return Promise.resolve(this.directory.teams()) }
 
   /**
+   * Read explicitly selected local workspace associations without publishing them.
+   * @returns team-to-workspace links on this device.
+   */
+  @Remote('workspaceLinks')
+  workspaceLinks(): Promise<readonly TeamBattleWorkspaceLink[]> { return Promise.resolve(this.links.list()) }
+
+  /**
+   * Associate a registered local workspace with an accessible team; replace any prior association.
+   * @param request - selected team and local workspace.
+   * @returns durable device-local links without workspace paths or Session content.
+   */
+  @Remote('bindWorkspace')
+  async bindWorkspace(request: BindTeamWorkspaceRequest): Promise<readonly TeamBattleWorkspaceLink[]> {
+    await this.directory.summaryFor({ teamId: request.teamId })
+    return this.links.bind(request)
+  }
+
+  /**
    * Read current member access states and owner-only invitation details.
    * @param request - selected team.
    * @returns authenticated team summary.
@@ -158,8 +191,8 @@ export class TeamBattleService extends TypertRemoteService {
   summary(request: TeamBattleActorRequest): Promise<TeamBattleTeamSummary> { return this.directory.summaryFor(request) }
 
   /**
-   * Create an owner-only team locally or on a shared server.
-   * @param request - metadata and optional shared server credential.
+   * Create an owner-only team using configured Host authorization when available.
+   * @param request - project metadata; configured Hosts reject server overrides.
    * @returns created team.
    */
   @Remote('createTeam')
@@ -190,9 +223,9 @@ export class TeamBattleService extends TypertRemoteService {
   revokeMember(request: RevokeTeamMemberRequest): Promise<TeamBattleTeamSummary> { return this.directory.revokeMember(request) }
 
   /**
-   * Join with an invitation; expired or revoked same-server membership can be replaced.
+   * Open existing active access or join with an invitation; expired or revoked same-server membership can be replaced.
    * @param request - invitation code.
-   * @returns joined team.
+   * @returns the existing or newly joined team, without consuming an invitation for active access.
    */
   @Remote('joinRemote')
   joinRemote(request: JoinRemoteTeamRequest): Promise<TeamBattleTeamSummary> { return this.directory.joinRemote(request) }

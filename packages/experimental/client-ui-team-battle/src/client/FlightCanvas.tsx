@@ -126,16 +126,21 @@ function drawSprite(
   context.restore()
 }
 
+async function loadImage(source: string): Promise<HTMLImageElement> {
+  const image = new Image()
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => { resolve() }
+    image.onerror = reject
+    image.src = source
+  })
+  return image
+}
+
 function loadAssets(): Promise<Assets> {
-  return Promise.all(Object.entries(ASSETS).map(async ([key, source]) => {
-    const image = new Image()
-    await new Promise<void>((resolve, reject) => {
-      image.onload = () => { resolve() }
-      image.onerror = reject
-      image.src = source
-    })
-    return [key, image] as const
-  })).then(entries => Object.fromEntries(entries) as unknown as Assets)
+  return Promise.all([
+    loadImage(ASSETS.player), loadImage(ASSETS.enemy), loadImage(ASSETS.boss),
+    loadImage(ASSETS.bolt), loadImage(ASSETS.impact),
+  ]).then(([player, enemy, boss, bolt, impact]) => ({ player, enemy, boss, bolt, impact }))
 }
 
 function resizeCanvas(canvas: HTMLCanvasElement, game: Game): number {

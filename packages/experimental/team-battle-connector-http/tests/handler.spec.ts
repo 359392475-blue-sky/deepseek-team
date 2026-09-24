@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import type { Context } from '@deepseek-ai/cordis'
+import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { TeamBattleError, TeamBattleWeaponId, type TeamBattleIngressEvent } from '@deepseek-ai/dsh-experimental-team-battle'
@@ -8,11 +8,13 @@ import { createTeamBattleConnectorHandler, type TeamBattleConnectorHandlerConfig
 import { apply } from '../src/index.ts'
 
 const servers: Server[] = []
+const contexts: Context[] = []
 
 afterEach(async () => {
   await Promise.all(servers.splice(0).map(server => new Promise<void>((resolve) => {
     server.close(() => { resolve() })
   })))
+  await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
 })
 
 function fakeContext(...secrets: [] | [string | undefined]) {
@@ -25,14 +27,17 @@ function fakeContext(...secrets: [] | [string | undefined]) {
     receipts.set(event.eventId, weaponId)
     return { eventId: event.eventId, duplicate: false, weaponId }
   })
+  const ctx = new Context()
+  contexts.push(ctx)
+  Object.defineProperties(ctx, {
+    credentials: { value: {
+      resolve: async () => secret === undefined ? undefined : { value: secret, source: 'test' },
+    } satisfies Pick<Context['credentials'], 'resolve'> },
+    teamBattle: { value: { ingest } satisfies Pick<Context['teamBattle'], 'ingest'> },
+    logger: { value: { warn: vi.fn() } satisfies Pick<Context['logger'], 'warn'> },
+  })
   return {
-    ctx: {
-      credentials: {
-        resolve: async () => secret === undefined ? undefined : { value: secret, source: 'test' },
-      },
-      teamBattle: { ingest },
-      logger: { warn: vi.fn() },
-    } as unknown as Context,
+    ctx,
     ingest,
   }
 }
@@ -150,21 +155,23 @@ describe('authenticated file delivery routes', () => {
 
   it('registers all delivery routes as exact, disposable routes under the configured path', async () => {
     const dispose = vi.fn()
-    const register = vi.fn((_route: { kind: string; path: string; handler: unknown }) => dispose)
-    const effects: Promise<() => void | Promise<void>>[] = []
+    const register = vi.fn<Context['webServer']['register']>(() => dispose)
     const unregisterNetwork = vi.fn()
-    const ctx = {
-      webServer: { register },
-      teamBattle: { registerNetworkTransport: vi.fn(() => unregisterNetwork) },
-      effect: (effect: () => (() => void) | Promise<() => Promise<void>>) => { effects.push(Promise.resolve(effect())) },
-    } as unknown as Context
+    const ctx = new Context()
+    contexts.push(ctx)
+    Object.defineProperties(ctx, {
+      webServer: { value: { register } satisfies Pick<Context['webServer'], 'register'> },
+      teamBattle: { value: {
+        registerNetworkTransport: vi.fn(() => unregisterNetwork),
+      } satisfies Pick<Context['teamBattle'], 'registerNetworkTransport'> },
+    })
     await apply(ctx, { path: '/connector', secretEnv: 'TEAM_BATTLE_TOKEN', maxBodyBytes: 1024 })
     expect(register.mock.calls.map(([route]) => ({ kind: route.kind, path: route.path }))).toEqual([
       { kind: 'exact', path: '/connector' },
       { kind: 'exact', path: '/connector/deliveries/pull' },
       { kind: 'exact', path: '/connector/deliveries/ack' },
     ])
-    for (const effect of effects) await (await effect)()
+    await ctx.fiber.dispose()
     expect(dispose).toHaveBeenCalledTimes(3)
     expect(unregisterNetwork).toHaveBeenCalledOnce()
   })

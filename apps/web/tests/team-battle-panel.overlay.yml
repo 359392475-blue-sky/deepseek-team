@@ -1,9 +1,13 @@
-# Equivalent to the explicit Team Battle Host and Web profile layers over the
-# scaffold's stable base and Web bundles.
+# Private Team Battle project layer. Apply after dsh-base so the shared
+# storage-domain service is available before this project domain opens.
+
 - insert:
     - id: team-battle
       name: '@deepseek-ai/dsh-experimental-team-battle'
       config:
+        sharedServer:
+          url: https://lowpower.me/team-battle
+          accessTokenRef: TEAM_BATTLE_SERVER_ACCESS_TOKEN
         projectId: lowpower-team-battle
         projectName: DeepSeek Harness 团战版
         projectGoal: 让三至四名成员与各自 Codex 围绕同一项目共享经过确认的 Context、任务与产物。
@@ -35,6 +39,9 @@
         maxWeaponGrants: 2048
         memberOfflineAfterMs: 60000
         shieldDamagePerQuery: 3
+
+# Private Team Battle Web layer. Apply after dsh-web-app and the host-side
+# Team Battle layer so both WebServer and the shared project domain exist.
 
 - id: ui-trajectory
   disabled: true

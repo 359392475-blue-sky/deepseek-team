@@ -52,6 +52,36 @@ afterEach(() => {
 })
 
 describe('default product isolation', () => {
+  it('keeps the private Team Battle app separate but rejects importing it into the default product', () => {
+    const root = fixture()
+    const name = '@deepseek-ai/dsh-macos-team-battle-app'
+    write(root, 'apps/macos/package.json', { name, private: true, dependencies: { [experimental]: 'workspace:*' } })
+    expect(verifyDefaultProductIsolation(root).failures).toEqual([])
+
+    manifest(root, 'apps/cli/package.json', { dependencies: { [core]: 'workspace:^', [name]: 'workspace:*' } })
+    expect(verifyDefaultProductIsolation(root).failures.join('\n')).toContain(`${name} dependencies -> ${experimental}`)
+  })
+
+  it.each([
+    { name: '@fixture/other-app', private: true },
+    { name: '@deepseek-ai/dsh-macos-team-battle-app', private: false },
+  ])('checks the macOS app when its distribution identity differs: %j', (identity) => {
+    const root = fixture()
+    write(root, 'apps/macos/package.json', { ...identity, dependencies: { [experimental]: 'workspace:*' } })
+    expect(verifyDefaultProductIsolation(root).failures.join('\n')).toContain(experimental)
+  })
+
+  it.each(['apps/cli/src/bin.ts', 'apps/web/src/main.ts'])(
+    'checks Team Battle dependencies reached through a relative import from %s', (entry) => {
+      const root = fixture()
+      const name = '@deepseek-ai/dsh-macos-team-battle-app'
+      write(root, 'apps/macos/package.json', { name, private: true, dependencies: { [experimental]: 'workspace:*' } })
+      write(root, 'apps/macos/src/index.ts', 'export {}\n')
+      write(root, entry, "import '../../macos/src/index.js'\n")
+      expect(verifyDefaultProductIsolation(root).failures.join('\n')).toContain(`${name} dependencies -> ${experimental}`)
+    },
+  )
+
   it.each(['@deepseek-ai/libreoffice-kit'])(
     'accepts independently published %s but rejects unknown workspace packages', (name) => {
       const root = fixture()

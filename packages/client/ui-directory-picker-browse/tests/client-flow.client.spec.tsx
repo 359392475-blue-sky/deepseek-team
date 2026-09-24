@@ -5,7 +5,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import type { DirectoryListing } from '@deepseek-ai/dsh-api-remotes/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
-import { usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
+import { usePinnedBrowserLanguages, SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
+import type { PropsRuntime, PropsRenderFactories } from '@deepseek-ai/dsh-client-ui-slots'
 import type { DirectoryFlowOwnerProps } from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { apply, inject } from '../src/client/index.ts'
 import { BrowseDirectoryFlow } from '../src/client/flow.ts'
@@ -62,9 +63,13 @@ describe('directory-picker-browse client half', () => {
     const fiber = before.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     for (const hole of HOLES) expect(before.slots.entries(hole)).toHaveLength(1)
+    expect(() => before.slots.registerFactory({ name: 'workspace.directoryFlow', scope: 'root' }, () => null))
+      .toThrow('slot factory "workspace.directoryFlow" already has a definition')
     // Registry-contribution disposal proof: the fiber going down empties the holes.
     await fiber.dispose()
     for (const hole of HOLES) expect(before.slots.entries(hole)).toHaveLength(0)
+    const disposeReplacement = before.slots.registerFactory({ name: 'workspace.directoryFlow', scope: 'root' }, () => null)
+    disposeReplacement()
 
     const after = await bench()
     await after.ctx.plugin({ inject: [...inject], apply }).await()
@@ -227,4 +232,25 @@ describe('directory-picker-browse node half', () => {
   it('the node apply is an inert loader seat', () => {
     expect(() => { nodeApply() }).not.toThrow()
   })
+})
+
+
+it('serves the reusable directory flow through the composed browse service', async () => {
+  const runtime = await SlotTestRuntime.create()
+  runtime.ctx.provide('locale', new LocaleRuntime(runtime.ctx))
+  const listDirectory = vi.fn(async () => homeListing)
+  const pickDirectory = vi.fn(() => { throw new Error('native capability unavailable') })
+  runtime.ctx.provide('uiWorkspace', { listDirectory, createDirectory: vi.fn(), pickDirectory })
+  await runtime.mount({ inject, apply })
+  const onPicked = vi.fn()
+  await runtime.root.declare({}, ({ renderFactorySlot }: PropsRuntime<'root'> & PropsRenderFactories) => (
+    <>{renderFactorySlot('workspace.directoryFlow', owner({ onPicked }))}</>
+  ))
+  const page = runtime.renderRoot()
+  expect(await page.findByRole('dialog', { name: '选择工作区目录' })).toBeTruthy()
+  await waitFor(() => { expect(listDirectory).toHaveBeenCalled() })
+  fireEvent.click(page.getByRole('button', { name: '打开' }))
+  expect(onPicked).toHaveBeenCalledWith(HOME)
+  expect(pickDirectory).not.toHaveBeenCalled()
+  await runtime.dispose()
 })

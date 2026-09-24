@@ -2935,6 +2935,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'local directory.',
       },
       {
+        signature: '@Remote(\'workspaceLinks\') workspaceLinks(): Promise<readonly TeamBattleWorkspaceLink[]>',
+        description: 'Read explicitly selected local workspace associations without publishing them.',
+        parameters: [],
+        returns: 'team-to-workspace links on this device.',
+      },
+      {
+        signature: '@Remote(\'bindWorkspace\') async bindWorkspace(request: BindTeamWorkspaceRequest): Promise<readonly TeamBattleWorkspaceLink[]>',
+        description: 'Associate a registered local workspace with an accessible team; replace any prior association.',
+        parameters: [{ name: 'request', description: 'selected team and local workspace.' }],
+        returns: 'durable device-local links without workspace paths or Session content.',
+      },
+      {
         signature: '@Remote(\'summary\') summary(request: TeamBattleActorRequest): Promise<TeamBattleTeamSummary>',
         description: 'Read current member access states and owner-only invitation details.',
         parameters: [{ name: 'request', description: 'selected team.' }],
@@ -2942,8 +2954,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote(\'createTeam\') createTeam(request: CreateTeamRequest): Promise<TeamBattleTeamSummary>',
-        description: 'Create an owner-only team locally or on a shared server.',
-        parameters: [{ name: 'request', description: 'metadata and optional shared server credential.' }],
+        description: 'Create an owner-only team using configured Host authorization when available.',
+        parameters: [{ name: 'request', description: 'project metadata; configured Hosts reject server overrides.' }],
         returns: 'created team.',
       },
       {
@@ -2966,9 +2978,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote(\'joinRemote\') joinRemote(request: JoinRemoteTeamRequest): Promise<TeamBattleTeamSummary>',
-        description: 'Join with an invitation; expired or revoked same-server membership can be replaced.',
+        description: 'Open existing active access or join with an invitation; expired or revoked same-server membership can be replaced.',
         parameters: [{ name: 'request', description: 'invitation code.' }],
-        returns: 'joined team.',
+        returns: 'the existing or newly joined team, without consuming an invitation for active access.',
       },
       {
         signature: '@Remote(\'networkStatus\') networkStatus(): Promise<TeamBattleHostingStatus>',
@@ -4691,6 +4703,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'BashEnvVariableInfo',
     declaration: 'export interface BashEnvVariableInfo extends BashEnvVariable {\n    contributor: string;\n    key: DshEnvironmentKey;\n}',
+  },
+  {
+    name: 'BindTeamWorkspaceRequest',
+    declaration: 'export type BindTeamWorkspaceRequest = TeamBattleWorkspaceLink;',
   },
   {
     name: 'Branded',
@@ -7475,6 +7491,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'TeamBattleWeaponId',
     declaration: 'export type TeamBattleWeaponId = Branded<\'TeamBattleWeaponId\'>;',
+  },
+  {
+    name: 'TeamBattleWorkspaceLink',
+    declaration: 'export interface TeamBattleWorkspaceLink {\n    readonly teamId: TeamBattleProjectId;\n    readonly workspaceId: WorkspaceId;\n}',
   },
   {
     name: 'TeamId',

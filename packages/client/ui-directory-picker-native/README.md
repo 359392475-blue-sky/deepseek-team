@@ -43,6 +43,8 @@ Choose this surface when the browser runs on the same machine as the Host, so an
 
 Both slot registrations install as one transactional effect through nested `ctx.slots.inject()` calls, because either declaring entry may activate later or replace its declaration. The occupant arms once per rising `open` edge, so re-renders never launch a second chooser; settlements ride a ref so the answer reaches the owner's latest handlers. An unmount (HMR replacing the occupant) discards the settlement wholesale: the wire carries no per-request abort, so the native chooser survives until answered and its answer lands nowhere. The node half is an empty `apply` that keeps the plugin on the host roster.
 
+The package also provides the `workspace.directoryFlow` factory declared by [ui-workspace](../ui-workspace/README.md#the-directory-flow-hole), so independent client entries reuse this native flow. The factory registration leaves with its plugin fiber.
+
 </details>
 
 -----

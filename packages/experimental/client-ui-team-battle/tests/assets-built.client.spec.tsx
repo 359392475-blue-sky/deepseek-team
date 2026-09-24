@@ -13,6 +13,7 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import * as primitives from '@deepseek-ai/dsh-client-ui-primitives'
 import type { TeamBattleView } from '@deepseek-ai/dsh-experimental-team-battle/client'
+import { TeamBattleMemberId, TeamBattleProjectId, TeamBattleWeaponId } from '@deepseek-ai/dsh-experimental-team-battle/src/types.ts'
 
 const PLUGIN_ID = '@deepseek-ai/dsh-experimental-client-ui-team-battle'
 const SESSION = 'built-flight' as SessionId
@@ -34,20 +35,21 @@ function builtBundle(): string | undefined {
   }
 }
 
-const view = {
+const view: TeamBattleView = {
+  simulationEnabled: false,
   revision: 1,
-  localMemberId: 'product',
-  project: { name: 'Built asset proof', goal: 'Load images' },
+  localMemberId: TeamBattleMemberId('product'),
+  project: { id: TeamBattleProjectId('project-1'), name: 'Built asset proof', goal: 'Load images' },
   members: [
-    { id: 'product', name: 'Blue', role: 'Product', status: 'online', color: '#2464df' },
-    { id: 'engineering', name: 'Engineering', role: 'Engineering', status: 'online', color: '#1c9b70' },
-    { id: 'quality', name: 'Quality', role: 'QA', status: 'idle', color: '#c97a2a' },
+    { id: TeamBattleMemberId('product'), name: 'Blue', role: 'Product', status: 'online', color: '#2464df' },
+    { id: TeamBattleMemberId('engineering'), name: 'Engineering', role: 'Engineering', status: 'online', color: '#1c9b70' },
+    { id: TeamBattleMemberId('quality'), name: 'Quality', role: 'QA', status: 'idle', color: '#c97a2a' },
   ],
   tasks: [], contexts: [], artifacts: [], activity: [],
-  weaponGrants: [{ id: 'weapon-1', eventId: 'query-1', memberId: 'product', kind: 'query', shieldDamage: 3, createdAt: Date.now() }],
+  weaponGrants: [{ id: TeamBattleWeaponId('weapon-1'), eventId: 'query-1', memberId: TeamBattleMemberId('product'), kind: 'query', shieldDamage: 3, createdAt: Date.now() }],
   progress: { acceptedWeight: 0, totalWeight: 1, percent: 0, coreHp: 100, coreMaxHp: 100 },
   combatShield: { hp: 100, maxHp: 100 },
-} as unknown as TeamBattleView
+}
 
 afterEach(() => {
   cleanup()
@@ -77,9 +79,10 @@ describe('Team Battle built Client assets', () => {
     vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1))
     vi.stubGlobal('cancelAnimationFrame', vi.fn())
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+    const context: Partial<CanvasRenderingContext2D> = {
       save: vi.fn(), restore: vi.fn(), drawImage: vi.fn(), setTransform: vi.fn(), clearRect: vi.fn(), fillRect: vi.fn(),
-    } as unknown as CanvasRenderingContext2D)
+    }
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as CanvasRenderingContext2D)
     vi.spyOn(HTMLCanvasElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 360, height: 400, top: 0, left: 0, right: 360, bottom: 400, x: 0, y: 0, toJSON: () => ({}) })
 
     let handoff: Handoff | undefined
@@ -103,12 +106,15 @@ describe('Team Battle built Client assets', () => {
     new RemoteService(ctx)
     const success = () => Promise.resolve({ ok: true as const, value: view })
     ctx.provide('remote.teamBattle', { view: success, createTask: success, updateTask: success, publishContext: success, publishArtifact: success, reviewArtifact: success, consumeWeapon: success, heartbeat: success })
+    ctx.provide('layout', { selectPanel: vi.fn() })
+    ctx.provide('uiWorkspace', { openWorkspace: vi.fn() })
+    ctx.provide('workspaces', { create: vi.fn() })
     ctx.provide('locale', new LocaleRuntime(ctx))
     await ctx.plugin(SlotRegistry).await()
     const root = ctx.slots.register({ name: 'root', children: { 'conversation.view': { kind: 'list', scope: 'session' }, 'conversation.chat.sidecar': { kind: 'single', scope: 'session' } } } as never, () => null)
     const dispose = await runtime.apply(ctx)
     const entry = ctx.slots.entries('conversation.chat.sidecar')[0]!
-    const actions = (entry.inject as unknown as () => Record<string, unknown>)()
+    const actions = entry.inject!()
     render(React.createElement(entry.component as never, { sessionId: SESSION, t: ctx.locale.bind('team-battle'), ...actions } as never))
 
     fireEvent.click(screen.getByRole('button', { name: 'Expand game' }))

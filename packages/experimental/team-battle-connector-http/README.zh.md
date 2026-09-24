@@ -33,6 +33,7 @@ kind: "package-reference"
 | `maxBodyBytes` | 原始请求 body（请求体）的正安全整数字节上限。 |
 | `maxNetworkBodyBytes` | 独立团队请求和响应的字节上限，默认 8388608。 |
 | `networkRequestTimeoutMs` | 团队网络请求超时毫秒数，默认 15000。 |
+| `invitationDownloadUrl` | 可选的 HTTPS 客户端下载或安装说明页，显示在邀请指引中。 |
 | `hostedServer` | 可选的开机托管配置：`host`、`port`、`accessTokenRef`；省略时不会启动共享监听。 |
 
 `path`、`secretEnv` 和 `maxBodyBytes` 是必填字段。非法路由或 credential-reference 名字会在加载时失败。每个请求都会重新解析 credential 值，因此轮换会影响下一个请求；当前缺失值时返回 `503`，不准入事件。
@@ -40,13 +41,13 @@ kind: "package-reference"
 <a id="shared-team-server"></a>
 ## 固定团队服务器
 
-专用监听仅接受精确的 `POST /create`、`POST /join` 和 `POST /call`。`/create` 使用部署级 Bearer 创建码，`/join` 交换邀请和加入设备生成的成员令牌，`/call` 使用成员 Bearer 令牌。团队领域从令牌确认项目成员及其权限；请求不能借用角色演练来切换身份。其他路径（包括 `/api`）返回 `404`，来自浏览器 `Origin` 的请求被拒绝。
+专用监听的变更操作仅接受精确的 `POST /create`、`POST /join` 和 `POST /call`。`/create` 使用部署级 Bearer 创建码，`/join` 交换邀请和加入设备生成的成员令牌，`/call` 使用成员 Bearer 令牌。团队领域从令牌确认项目成员及其权限；请求不能借用角色演练来切换身份。`GET /` 与 `HEAD /` 提供邀请指引；页面在本地检查 fragment 格式，并说明如何获取适用客户端、把完整链接粘贴到“通过邀请链接加入”，以及开始任务交接。复制按钮保留完整 URL；同标签页切换 fragment 时重新检查格式并重置复制提示，未完成的剪贴板操作不会覆盖另一邀请的指引。剪贴板被拒绝时提供手动复制说明。`invitationDownloadUrl` 添加管理员提供的 HTTPS 安装链接；非法 URL、登录信息或 fragment 会在加载时失败。邀请有效期与成员身份仅在本机应用加入时验证。fragment 不发送给服务器；页面不会自动加入、发起网络请求或加载第三方资源。其他路径（包括 `/api`）返回 `404`，来自浏览器 `Origin` 的变更请求被拒绝。
 
-应用始终通过自己的本机 Host 代理团队请求。地址允许 HTTPS 服务器及反向代理前缀，例如 `https://lowpower.me/team-battle`；HTTP 仅允许私有 IP 字面量。地址不得携带登录信息、query、fragment 或歧义路径。代理限制请求和响应大小、禁止重定向，并且不会自动重试业务操作。`POST /create` 返回 HTTP 401 时，浏览器收到 Remote 错误 `team-battle/server-auth-required`，详情为 `{ httpStatus: 401 }`；用户应核对服务器地址，并向管理员获取当前创建码后主动重试。该错误不包含响应正文或提交的创建码。只有携带 `TEAM_BATTLE_ACCESS_DENIED` 的 HTTP 403 才会转换为有类型的成员凭证拒绝，其他服务端诊断保持私有。请求中断后，用户应先读取团队状态再决定是否重试。
+应用始终通过自己的本机 Host 代理团队请求。地址允许 HTTPS 服务器及反向代理前缀，例如 `https://lowpower.me/team-battle`；HTTP 仅允许私有 IP 字面量。地址不得携带登录信息、query、fragment 或歧义路径。代理限制请求和响应大小、禁止重定向，并且不会自动重试业务操作。`POST /create` 返回 HTTP 401 时，浏览器收到 Remote 错误 `team-battle/server-auth-required`，详情为 `{ httpStatus: 401 }`；管理员应修复本机 Host 的服务连接配置后，由用户主动重试。该错误不包含响应正文或提交的创建码。同目录文件或文件夹重名时返回 HTTP 409 及白名单错误码 `team-battle/name-conflict`；本机 Host 使用固定的安全指引和 `{ httpStatus: 409 }` 重建该 Remote 错误，忽略服务端消息与详情。只有携带 `TEAM_BATTLE_ACCESS_DENIED` 的 HTTP 403 才会转换为有类型的成员凭证拒绝，其他服务端诊断保持私有。请求中断后，用户应先读取团队状态再决定是否重试。
 
 [独立 profile](deploy/profile/cordis.patch.yml) 由 `dsh --profile team-server` 启动；把[配套清单](deploy/profile/package.json)和配置放入独立 `DSH_HOME` 的 `profiles/team-server`。它加载 JSON 存储、凭证、Typert 注册表与团队服务，不挂载模型、浏览器、终端、会话或目录 API。`TEAM_BATTLE_SERVER_ACCESS_TOKEN` 由部署环境提供；创建码不得发给普通邀请成员。团队监听使用 `127.0.0.1:18864`；反向代理负责 HTTPS，并剥离公共 `/team-battle` 前缀。数据保存在该 `DSH_HOME` 的 `storages`，应独立备份。应用或进程重启不会重发已提交的业务操作。
 
-产物打包使用 [pack.mjs](deploy/pack.mjs)，输入已构建的工作区，输出真实 `dsh` CLI、此 profile 与最小运行依赖；不会在服务器安装或构建整个仓库。参数依次为尚不存在的输出目录和 `linux-x64-gnu` 或 `darwin-arm64`。Linux 原生加载器预构建包必须匹配工作区锁文件的完整性值。产物中的 [smoke.mjs](deploy/smoke.mjs) 以独立临时数据目录运行原始 CLI，检查创建、重启持久化及私人 API 拒绝；在与目标匹配的平台执行 `node smoke.mjs /absolute/runtime/path`。
+产物打包使用 [pack.mjs](deploy/pack.mjs)，输入已构建的工作区，输出真实 `dsh` CLI、此 profile 与最小运行依赖；不会在服务器安装或构建整个仓库。参数依次为尚不存在的输出目录和 `linux-x64-gnu` 或 `darwin-arm64`。Linux 原生加载器预构建包必须匹配工作区锁文件的完整性值。产物中的 [smoke.mjs](deploy/smoke.mjs) 以独立临时数据目录运行原始 CLI，检查邀请落地页、创建、独立的发起人与成员凭证、邀请仅能由一位接收者兑换、重启后的共享纪要读取及私人 API 拒绝；在与目标匹配的平台执行 `node smoke.mjs /absolute/runtime/path`。
 
 原有 Codex 路由由另一个仅限本机的随机端口承载；独立服务器默认未配置其凭证。团队文件下载只读已发布字节，不能读取成员工作目录；私人会话、模型凭证和终端始终不属于专用监听的服务集合。
 
@@ -115,6 +116,8 @@ helper 会读取有界 JSON stdin，但只选取 `session_id` 与 `turn_id`。�
 ## 安全与运行
 
 使用高熵凭证并通过 HTTPS 公开独立团队监听。此包不终止 TLS，也不限制请求频率；反向代理负责这些部署控制。原有 Codex 路由使用共享令牌，不能替代团队成员认证。此包不记录请求体、令牌或提示词文本。
+
+本包不发布运行时 invariant（不变量）companion（配套插件）：请求准入负责认证与输入检查，团队服务负责项目状态，WebServer 负责路由注册。连接器不维护用于和这些所有者独立比对的项目投影。
 
 <a id="model-experience"></a>
 ## 模型体验

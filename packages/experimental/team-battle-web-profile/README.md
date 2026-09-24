@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-experimental-team-battle-web-profile` adds the real Team Battle browser surfaces and the authenticated Codex HTTP connector to a Web profile that already mounts the Team Battle project service. The browser keeps the private Harness conversation beside a playable airplane game and provides a separate Team view for members, tasks, published context, artifacts, reviews, provenance, and activity.
+`dsh-experimental-team-battle-web-profile` adds the real Team Battle browser surfaces and the authenticated Codex HTTP connector to a Web profile that already mounts the Team Battle project service. The browser keeps the private Harness conversation beside a playable airplane game and provides a separate Team view for members, tasks, published context, artifacts, reviews, source details, and activity.
 
 ## Table of Contents
 
@@ -27,6 +27,8 @@ English | [中文](README.zh.md)
 
 Add this layer after `dsh-web-app` and `dsh-experimental-team-battle-profile`. Set `TEAM_BATTLE_CODEX_TOKEN` before sending connector events; a missing credential leaves the UI usable but makes the connector answer unavailable instead of accepting unauthenticated input.
 
+Project creation uses the Host-configured `sharedServer` at `https://lowpower.me/team-battle`, with the credential reference `TEAM_BATTLE_SERVER_ACCESS_TOKEN`. Store that deployment permission in the creating Host’s credential provider; never embed its value in this profile or the browser. Project forms need only project and member details. Invited colleagues join with a link and do not need the creation permission. Test or alternate deployments update both `sharedServer` fields in the complete Host layer configuration; this Web layer does not replace that configuration.
+
 This layer disables the Trajectory UI in Team Battle only. The standard Web profile retains it. The optional flight game starts collapsed and can be expanded for a short break without replacing Chat.
 
 Adding a workspace opens the directory browser inside the Team Battle window, including the macOS application. It browses the Host machine; selecting a workspace does not publish its files to Team Space.
@@ -42,6 +44,8 @@ The first connector accepts only content-free Query pulses. Browser Remote calls
 <summary>Implementation internals</summary>
 
 [`cordis.patch.yml`](cordis.patch.yml) inserts the credential-protected HTTP adapter and the browser plugin, and disables `ui-trajectory` in this composition. It replaces the automatic directory picker with the Host and UI browse plugins so workspace selection remains visible in the application. The browser plugin mounts the generated `teamBattle` Remote contribution, provides a collapsible Chat game, and contributes the full Team page as a Conversation view. The connector authenticates independently of browser cookies because personal Codex processes do not share a browser session.
+
+No runtime invariant companion is published because this bundle contains only static Web composition and owns no runtime state; the browser and connector plugins own their live behavior.
 
 </details>
 

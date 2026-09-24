@@ -1,23 +1,29 @@
-.entry {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  width: 100%;
-  min-height: 40px;
-  padding: 9px 12px;
-  border: 0;
-  border-radius: 9px;
-  color: #1768ff;
-  background: transparent;
-  cursor: pointer;
-  font: inherit;
-}
-
-.entry:hover { background: #edf3ff; }
-.entry:focus-visible { outline: 2px solid #1768ff; outline-offset: -2px; }
-.page {
-  position: absolute;
-  inset: 0;
-  outline: none;
-}
+.page { position: relative; height: 100%; min-width: 0; overflow: auto; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-base); }
+.projects { flex: none; max-height: 42%; overflow-y: auto; padding: 12px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l3); margin-bottom: 8px; }
+.sectionHeading { display: flex; align-items: center; justify-content: space-between; padding: 0 10px 8px; color: var(--dsw-alias-label-secondary); font-size: 13px; }
+.projects button, .homeActions button, .bindingDialog button { font: inherit; color: var(--dsw-alias-label-primary); cursor: pointer; background: transparent; border: 0; border-radius: 8px; }
+.projects button:hover, .bindingDialog button:hover, .homeActions button:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.projects button:focus-visible, .homeActions button:focus-visible { outline: 2px solid var(--dsw-alias-link); }
+.sectionHeading button { font-size: 22px; padding: 0 6px; }
+.projectRow { display: flex; align-items: center; gap: 2px; }
+.projectRow > button:first-child { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; text-align: left; padding: 9px 10px; font-size: 13px; }
+.projectRow > button:first-child > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.projectRow button[aria-current] { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-link); }
+.chatButton { flex: none; padding: 7px; display: flex; }
+.joinAction { width: 100%; text-align: left; padding: 8px 10px; font-size: 12px !important; color: var(--dsw-alias-label-secondary) !important; }
+.muted { color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.6; }
+.projects > .muted { padding: 0 10px; }
+.homeActions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 12px 0 2px; }
+.homeActions button { padding: 8px 12px; border: 0.5px solid var(--dsw-alias-border-l3); font-size: 13px; }
+.collaborators { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; margin-left: auto; max-width: 60%; font-size: 12px; color: var(--dsw-alias-label-secondary); -webkit-app-region: no-drag; }
+.collaboratorProject { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.memberBadge { border-radius: 20px; padding: 4px 8px; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover); }
+.bindingDialog { width: min(480px, 100%); max-height: 100%; overflow-y: auto; background: var(--dsw-alias-bg-base); border: 0; border-radius: 16px; box-shadow: var(--dsw-elevation-prominent); }
+.bindingDialog h2 { font-size: 18px; margin-top: 0; }
+.workspaceList { max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.workspaceList button { display: flex; align-items: center; gap: 10px; text-align: left; padding: 10px; border: 0.5px solid var(--dsw-alias-border-l3); }
+.workspaceList small { display: block; color: var(--dsw-alias-label-secondary); overflow-wrap: anywhere; }
+.dialogActions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+.dialogActions button { padding: 8px 12px; border: 0.5px solid var(--dsw-alias-border-l3); }
+.error { color: var(--dsw-alias-state-error-primary); font-size: 12px; overflow-wrap: anywhere; }
+@media (max-width: 720px) { .collaboratorProject { display: none; } .collaborators { max-width: 80%; } }

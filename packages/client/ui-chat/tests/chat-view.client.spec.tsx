@@ -3323,13 +3323,14 @@ describe('ChatView', () => {
       return opts?.fallback ?? null
     }) as React.ComponentProps<typeof ChatNodeSeat>['renderSlot'])
     render(<h.ChatView {...h.props} />)
-    expect(calls).toHaveLength(1)
-    expect(calls[0]).toMatchObject({
+    const nodeCalls = calls.filter(call => call.key === 'conversation.chat.node')
+    expect(nodeCalls).toHaveLength(1)
+    expect(nodeCalls[0]).toMatchObject({
       key: 'conversation.chat.node',
       owner: { node: { kind: 'tool-call' } },
       entryKey: 'tool-call',
     })
-    const owner = calls[0]?.owner as RoutedChatNodeOwner
+    const owner = nodeCalls[0]?.owner as RoutedChatNodeOwner
     expect((owner.node.data as { readonly root: ToolCallBlock }).root).toBe(block)
     expect(owner.openFile).not.toBe(h.openFile)
     owner.openFile('src/a.ts')

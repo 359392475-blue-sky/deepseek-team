@@ -1077,6 +1077,13 @@ Requires: `typert` · `storageDomain`
 ```ts config-catalog
 /** Team Battle deployment configuration. */
 export interface Config {
+  /** Fixed shared server used for project creation and invitation admission on this local Host. */
+  readonly sharedServer?: {
+    /** HTTPS server base, or private HTTP address for local tests and deployments. */
+    readonly url: string
+    /** Host credential reference authorizing creation; never returned to the browser. */
+    readonly accessTokenRef: string
+  } | undefined
   /** Maximum hosted and joined teams retained on this device. */
   readonly maxTeams?: number
   /** Maximum retained invitations per hosted team. */
@@ -1140,7 +1147,7 @@ export interface TeamBattleMemberConfig {
 }
 ```
 
-Source: [`packages/experimental/team-battle/src/index.ts:16`](../packages/experimental/team-battle/src/index.ts)
+Source: [`packages/experimental/team-battle/src/index.ts:18`](../packages/experimental/team-battle/src/index.ts)
 
 <a id="deepseek-aidsh-experimental-team-battle-connector-http"></a>
 
@@ -1161,6 +1168,8 @@ export interface Config {
   readonly maxNetworkBodyBytes?: number
   /** Maximum duration of a Team network request in milliseconds. @default 15000 */
   readonly networkRequestTimeoutMs?: number
+  /** Optional HTTPS download or installation page linked from the invitation landing page. */
+  readonly invitationDownloadUrl?: string
   /** Explicit dedicated-server startup; omission keeps hosting off until a local command. */
   readonly hostedServer?: {
     /** Private bind address, usually 127.0.0.1 behind HTTPS reverse proxying. */

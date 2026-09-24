@@ -38,6 +38,19 @@ describe('application entrypoints', () => {
     ])
   })
 
+  it('accepts the external event callback but rejects another bin in its package', () => {
+    const root = fixture()
+    const path = 'packages/experimental/team-battle-connector-http/package.json'
+    write(root, path, JSON.stringify({ bin: { 'dsh-team-battle-codex-hook': './lib/bin.js' } }))
+    expect(applicationEntrypointViolations(root)).toEqual([])
+
+    write(root, path, JSON.stringify({ bin: { 'dsh-team-battle-codex-hook': './lib/bin.js', app: './lib/app.js' } }))
+    expect(applicationEntrypointViolations(root)).toEqual([
+      `${path}: classified bin must remain {"dsh-team-battle-codex-hook":"./lib/bin.js"}, `
+      + 'got {"dsh-team-battle-codex-hook":"./lib/bin.js","app":"./lib/app.js"}',
+    ])
+  })
+
   it('rejects an unclassified executable source', () => {
     const root = fixture()
     write(root, 'packages/example/app/src/bin.ts', '#!/usr/bin/env node\n')

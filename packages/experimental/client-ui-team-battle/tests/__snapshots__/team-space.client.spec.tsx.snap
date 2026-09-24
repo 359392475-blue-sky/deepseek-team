@@ -1,0 +1,153 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Team Space files > keeps a conflicting publication ready for a renamed retry (en) 1`] = `
+{
+  "failure": "This folder already contains a file or folder with that name. Existing items cannot be overwritten. Choose another name, or publish each version in a different folder. Your input has been kept.",
+  "versionHint": "The version label describes the file; it does not replace an older file. Rename a revision, or create a version folder on Files and open it before publishing.",
+}
+`;
+
+exports[`Team Space files > keeps a conflicting publication ready for a renamed retry (zh) 1`] = `
+{
+  "failure": "当前文件夹中已有同名文件或文件夹，不能覆盖。请更改名称；如需保留多个版本，请在不同的版本文件夹中发布文件。你的输入已保留。",
+  "versionHint": "版本号只用于说明，不会覆盖旧文件。发布修订版时，请更改名称，或先在“文件”页新建版本文件夹，再进入该文件夹发布。",
+}
+`;
+
+exports[`TeamSpaceView > copies the task with published decisions, files, and revision feedback (en) 1`] = `
+"# DeepSeek Harness Team
+
+Project goal: Ship a real collaboration space
+
+This project context was explicitly published by team members. Continue according to my role and current task. Notes are ordered by publication time; account for newer decisions and review feedback. Prepare the deliverables, key decisions, unresolved issues, and next steps so I can publish them back to Team Space.
+
+My name: Blue
+My role: Product
+
+## Tasks
+
+### Local work
+
+Owned here
+
+Owner: Blue
+
+Status: In progress
+
+## Meeting notes
+
+### Use one project aggregate
+
+Source: Blue
+
+Decisions (one per line)
+- Use CAS
+
+Next steps (one per line)
+- Ship UI
+
+Source references (one per line)
+- AGENT-NOTE
+
+### Current acceptance criteria
+
+Source: Blue
+
+Decisions (one per line)
+- Support keyboard and touch
+
+Blockers (one per line)
+- Pause is missing
+
+Next steps (one per line)
+- Fix the pause button
+
+Source references (one per line)
+- requirements.md
+
+## Files
+
+This is a shared file list, not file contents. Download needed files from the Files tab into your own project folder before asking AI to read them. Use the shared path, version label, and file ID to distinguish matching names; confirm the intended version from the latest notes and review feedback. Do not assume the files have already been read.
+
+- /flight.png (v1.2; File ID: file-1) — Approved flight deck
+- /Product/v2.0/flight.png (v2.0; File ID: file-revision) — Revised controls
+
+## Review
+
+### demo.md
+
+Related task: Local work
+
+Status: Changes requested
+
+Review note: Pause before restarting"
+`;
+
+exports[`TeamSpaceView > copies the task with published decisions, files, and revision feedback (zh) 1`] = `
+"# DeepSeek Harness Team
+
+项目目标: Ship a real collaboration space
+
+以下为团队成员明确发布的项目上下文。根据我的角色和当前任务继续工作；纪要按发布时间先后排列，结合较新的决定与验收意见。完成后整理产物、关键决定、未解决问题和下一步，供我发布回团队空间。
+
+我的姓名: Blue
+我的角色: Product
+
+## 任务
+
+### Local work
+
+Owned here
+
+负责人: Blue
+
+状态: 进行中
+
+## 协作纪要
+
+### Use one project aggregate
+
+来源: Blue
+
+决定（每行一条）
+- Use CAS
+
+下一步（每行一条）
+- Ship UI
+
+来源引用（每行一条）
+- AGENT-NOTE
+
+### Current acceptance criteria
+
+来源: Blue
+
+决定（每行一条）
+- Support keyboard and touch
+
+阻塞（每行一条）
+- Pause is missing
+
+下一步（每行一条）
+- Fix the pause button
+
+来源引用（每行一条）
+- requirements.md
+
+## 文件
+
+下列为共享文件清单，不含文件正文。请从团队空间的“文件”页下载需要的文件，放入自己的项目目录后再交给 AI 读取。按共享路径、版本号和文件 ID 区分同名文件，并以最新纪要和验收意见确认采用哪一版。不要假定已经读取文件。
+
+- /flight.png (v1.2; 文件 ID: file-1) — Approved flight deck
+- /Product/v2.0/flight.png (v2.0; 文件 ID: file-revision) — Revised controls
+
+## 验收
+
+### demo.md
+
+关联任务: Local work
+
+状态: 需修改
+
+评审意见: Pause before restarting"
+`;

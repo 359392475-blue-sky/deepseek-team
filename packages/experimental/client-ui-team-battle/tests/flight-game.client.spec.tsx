@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { TeamBattleView } from '@deepseek-ai/dsh-experimental-team-battle/client'
+import { TeamBattleMemberId, TeamBattleProjectId, TeamBattleWeaponId } from '@deepseek-ai/dsh-experimental-team-battle/src/types.ts'
 import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { TeamBattleInjected } from '../src/client/actions.ts'
@@ -11,27 +12,28 @@ import { FlightGamePanel, type FlightGamePanelProps } from '../src/client/Flight
 import { en } from '../src/client/locales.ts'
 
 const SESSION = 'flight-session' as SessionId
-const view = {
+const view: TeamBattleView = {
+  simulationEnabled: false,
   revision: 3,
-  localMemberId: 'product',
-  project: { name: 'Flight Project', goal: 'Ship' },
+  localMemberId: TeamBattleMemberId('product'),
+  project: { id: TeamBattleProjectId('project-1'), name: 'Flight Project', goal: 'Ship' },
   members: [
-    { id: 'product', name: 'Blue', role: 'Product', status: 'online', color: '#1357c5' },
-    { id: 'engineering', name: 'Engineering', role: 'Engineering', status: 'online' },
-    { id: 'quality', name: 'Quality', role: 'QA', status: 'idle' },
-    { id: 'design', name: 'Design', role: 'UI', status: 'offline' },
+    { id: TeamBattleMemberId('product'), name: 'Blue', role: 'Product', status: 'online', color: '#1357c5' },
+    { id: TeamBattleMemberId('engineering'), name: 'Engineering', role: 'Engineering', status: 'online' },
+    { id: TeamBattleMemberId('quality'), name: 'Quality', role: 'QA', status: 'idle' },
+    { id: TeamBattleMemberId('design'), name: 'Design', role: 'UI', status: 'offline' },
   ],
   tasks: [], contexts: [], artifacts: [], activity: [],
-  weaponGrants: [{ id: 'weapon-1', eventId: 'query-1', memberId: 'engineering', kind: 'query', shieldDamage: 3, createdAt: Date.now() }],
+  weaponGrants: [{ id: TeamBattleWeaponId('weapon-1'), eventId: 'query-1', memberId: TeamBattleMemberId('engineering'), kind: 'query', shieldDamage: 3, createdAt: Date.now() }],
   progress: { acceptedWeight: 2, totalWeight: 10, percent: 20, coreHp: 80, coreMaxHp: 100 },
   combatShield: { hp: 62, maxHp: 100 },
-} as unknown as TeamBattleView
+}
 
-const context = {
+const context: Partial<CanvasRenderingContext2D> = {
   save: vi.fn(), restore: vi.fn(), drawImage: vi.fn(), setTransform: vi.fn(), clearRect: vi.fn(),
   fillRect: vi.fn(),
   globalAlpha: 1, fillStyle: '',
-} as unknown as CanvasRenderingContext2D
+}
 
 class ImageStub {
   onload: (() => void) | null = null
@@ -45,7 +47,7 @@ beforeEach(() => {
   vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1))
   vi.stubGlobal('cancelAnimationFrame', vi.fn())
   vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context)
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as CanvasRenderingContext2D)
   vi.spyOn(HTMLCanvasElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 360, height: 400, top: 0, left: 0, right: 360, bottom: 400, x: 0, y: 0, toJSON: () => ({}) })
 })
 
@@ -79,7 +81,7 @@ function actions(overrides: Partial<TeamBattleInjected> = {}): TeamBattleInjecte
 }
 
 function props(injected: TeamBattleInjected): FlightGamePanelProps {
-  return { sessionId: SESSION, t: makeTranslate(en, commonEn), ...injected } as unknown as FlightGamePanelProps
+  return { sessionId: SESSION, t: makeTranslate(en, commonEn), ...injected } as FlightGamePanelProps
 }
 
 describe('FlightGamePanel', () => {

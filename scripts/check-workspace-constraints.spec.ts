@@ -146,8 +146,14 @@ describe('experimental workspace constraints', () => {
     ])
   })
 
-  it('keeps the current experimental publication set unrestricted', () => {
-    expect(PRIVATE_EXPERIMENTAL_PACKAGE_DIRECTORIES).toEqual([])
+  it('keeps the Team Battle application layers private within the experimental publication set', () => {
+    expect([...PRIVATE_EXPERIMENTAL_PACKAGE_DIRECTORIES].sort()).toEqual([
+      'packages/experimental/client-ui-team-battle',
+      'packages/experimental/team-battle',
+      'packages/experimental/team-battle-connector-http',
+      'packages/experimental/team-battle-profile',
+      'packages/experimental/team-battle-web-profile',
+    ])
   })
 
   it('limits the public default to experimental package directories', () => {
@@ -255,6 +261,22 @@ describe('dsh family version coherence', () => {
 })
 
 describe('package payload constraints', () => {
+  it('requires the Team connector deployment profile and rejects broader deployment payloads', () => {
+    const dir = 'packages/experimental/team-battle-connector-http'
+    const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
+    expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
+    for (const omitted of ['deploy/profile/package.json', 'deploy/profile/cordis.patch.yml']) {
+      expect(checkWorkspaceManifest({ dir, manifest: {
+        ...manifest, files: manifest.files!.filter(file => file !== omitted),
+      } })).toEqual([expect.stringContaining('package.json files must be')])
+    }
+    expect(checkWorkspaceManifest({ dir, manifest: {
+      ...manifest, files: [...manifest.files!.filter(file => !file.startsWith('deploy/')), 'deploy'],
+    } })).toEqual([expect.stringContaining('package.json files must be')])
+    expect(expectedDshPackageFiles({ name: '@deepseek-ai/dsh-unrelated' }))
+      .not.toContain('deploy/profile/package.json')
+  })
+
   it.each(['./art/icon.svg', 'art/icon.svg'])('includes declared icon %s in the canonical payload', (icon) => {
     expect(expectedDshPackageFiles({ icon, exports: { './locale/*.json': './locale/*.json' } })).toEqual([
       'art/icon.svg', 'locale/*.json', 'lib/index.js', 'lib/types/**/*.d.ts',

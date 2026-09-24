@@ -189,6 +189,12 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'conversation.hero.workspace': { kind: 'single'; scope: 'root'; owner: EmptyWorkspaceOwnerProps }
     /** Brand mark shown before the blank-session headline. */
     'conversation.hero.brand.mark': { kind: 'single'; scope: 'root'; owner: HeroBrandMarkOwnerProps }
+    /** Deployment badge beside the blank-session headline. */
+    'conversation.hero.badge': { kind: 'single'; scope: 'root' }
+    /** Additional actions below the blank-session headline. */
+    'conversation.hero.actions': { kind: 'list'; scope: 'root' }
+    /** Workspace collaboration shown for blank and active Sessions. */
+    'conversation.session.header.collaboration': { kind: 'list'; scope: 'session' }
     /** Agent-preset control staged for a New Session. */
     'conversation.hero.agentPreset': { kind: 'single'; scope: 'session-maybe'; owner: HeroAgentPresetOwnerProps }
     /** Full-width entries above the composer card. */
@@ -233,6 +239,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
         'conversation.composer': { kind: 'chain'; scope: 'session' }
         'conversation.composer.bar': { kind: 'single'; scope: 'session-maybe' }
         'conversation.input.dock': { kind: 'list'; scope: 'session' }
+        'conversation.hero.badge': { kind: 'single'; scope: 'root' }
+        'conversation.hero.actions': { kind: 'list'; scope: 'root' }
         'conversation.hero.brand.mark': { kind: 'single'; scope: 'root' }
         'conversation.hero.workspace': { kind: 'single'; scope: 'root' }
         'conversation.hero.agentPreset': { kind: 'single'; scope: 'session-maybe' }
@@ -500,6 +508,7 @@ export type ConversationSessionHeaderSlotProps =
     'conversation.session.header.lineage'
     | 'conversation.session.header.actions'
     | 'conversation.session.header.utilities'
+    | 'conversation.session.header.collaboration'
     | 'conversation.session.header.corner'
   >
   & PropsStore<ConversationStore>

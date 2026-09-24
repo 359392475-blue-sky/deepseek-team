@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-08-21-team-battle-collaboration-edition.md
-2026-08-21-team-battle-collaboration-edition.md: 7403422e0453577ced5847b3e7258c9f91dc1c03
-2026-08-21-team-battle-collaboration-edition.zh.md: 7659f84532d5ff0aa6bfa4a7ef0e32b90e2c304f
+2026-08-21-team-battle-collaboration-edition.md: 96815f6e8b9f206e562e87d1929c4ff28b6ad565
+2026-08-21-team-battle-collaboration-edition.zh.md: c11247f52da72246b8bc0508b13b9136f29f9855

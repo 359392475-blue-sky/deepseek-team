@@ -1,10 +1,13 @@
 /** Browser-safe Team Battle identities, requests, projections, and connector values. */
 
+import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type {} from '@deepseek-ai/dsh-typert-protocol'
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
+    /** A file or folder name is already in use within the selected parent folder. */
+    'team-battle/name-conflict': { readonly httpStatus: 409 }
     /** The shared server refused authorization to create a team. */
     'team-battle/server-auth-required': { readonly httpStatus: 401 }
   }
@@ -571,9 +574,9 @@ export interface TeamBattleDirectoryView {
 
 /** Start a real single-owner team without simulated colleagues. */
 export interface CreateTeamRequest {
-  /** Shared server origin; omission creates a locally hosted space. */
+  /** Advanced destination for an unconfigured Host; configured Hosts reject overrides. */
   readonly serverUrl?: string
-  /** Server deployment credential authorizing creation; never retained in team views. */
+  /** Advanced explicit-server credential; configured Hosts resolve their own reference instead. */
   readonly serverAccessToken?: string
   readonly name: string
   readonly goal: string
@@ -590,7 +593,7 @@ export interface CreateTeamInviteRequest {
   readonly origin?: string
 }
 
-/** Copyable invitation returned once; storage retains only its token digest. */
+/** Copyable HTTPS/private-HTTP fragment link returned once; storage retains only its token digest. */
 export interface CreatedTeamInvite extends TeamBattleInviteView {
   readonly teamId: TeamBattleProjectId
   readonly token: string
@@ -609,7 +612,7 @@ export interface RevokeTeamMemberRequest {
   readonly memberId: TeamBattleMemberId
 }
 
-/** Join through a copied dsh-team invitation; private Session state is never sent. */
+/** Join through a copied fragment invitation link or legacy dsh-team link; private Session state is never sent. */
 export interface JoinRemoteTeamRequest {
   readonly inviteCode: string
 }
@@ -637,3 +640,12 @@ export interface CreateHostedTeamRequest {
   readonly memberRole: string
   readonly ownerMemberToken: string
 }
+
+/** Explicit association stored only on this device; it publishes no workspace paths or Session content. */
+export interface TeamBattleWorkspaceLink {
+  readonly teamId: TeamBattleProjectId
+  readonly workspaceId: WorkspaceId
+}
+
+/** Bind a local registered workspace to a team the local member can access. */
+export type BindTeamWorkspaceRequest = TeamBattleWorkspaceLink

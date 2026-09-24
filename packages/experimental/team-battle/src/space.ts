@@ -4,7 +4,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { defineDomain, type DomainGlobal } from '@deepseek-ai/dsh-storage-domain'
 import { z } from 'zod'
-import { TeamBattleError } from './error.ts'
+import { TeamBattleError, TeamBattleNameConflictError } from './error.ts'
 import type { TeamBattleActiveState } from './spec.ts'
 import {
   TeamBattleDeliveryId, TeamBattleFileId, TeamBattleFolderId, TeamBattleMemberId, TeamBattleProjectId,
@@ -186,7 +186,7 @@ export class TeamBattleSpace {
     })
   }
 
-  /** Store bounded actual bytes and server-computed integrity metadata.
+  /** Store bounded actual bytes under a unique sibling name; version labels do not replace files.
    * @param request - explicitly published file bytes and descriptive metadata.
    * @returns committed metadata without bytes.
    */
@@ -370,7 +370,7 @@ export class TeamBattleSpace {
 
   private assertUniqueName(state: SpaceState, value: string, parentId?: TeamBattleFolderId, excludeId?: string): void {
     if ([...state.folders, ...state.files].some(item => item.id !== excludeId && item.parentId === parentId && item.name === value)) {
-      throw new TeamBattleError('an item with this name already exists in the folder', 'TEAM_BATTLE_CONFLICT')
+      throw new TeamBattleNameConflictError()
     }
   }
 

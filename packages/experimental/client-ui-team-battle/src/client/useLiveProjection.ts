@@ -1,7 +1,7 @@
 /** Latest-response-wins polling shared by the project and file projections. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
+import type { RemoteFailure, RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import { failureText } from './actions.ts'
 
 const POLL_INTERVAL_MS = 2_500
@@ -21,9 +21,12 @@ export interface LiveProjectionState<T> {
  * Poll one projection and serialize mutations without accepting stale responses.
  * @param load - authoritative Remote read operation.
  * @param identity - mounted identity whose change discards browser-local state.
+ * @param formatFailure - localized display for a typed Remote failure; other errors retain their message.
  * @returns live data and contained, latest-wins read and write helpers.
  */
-export function useLiveProjection<T>(load: () => Promise<RemoteResult<T>>, identity: string): LiveProjectionState<T> {
+export function useLiveProjection<T>(
+  load: () => Promise<RemoteResult<T>>, identity: string, formatFailure: (error: RemoteFailure) => string = failureText,
+): LiveProjectionState<T> {
   const [view, setView] = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
   const [pending, setPending] = useState(false)
@@ -40,7 +43,7 @@ export function useLiveProjection<T>(load: () => Promise<RemoteResult<T>>, ident
     try {
       const result = await operation()
       if (!active.current || requested !== generation.current) return undefined
-      if (!result.ok) { setError(failureText(result.error)); return undefined }
+      if (!result.ok) { setError(formatFailure(result.error)); return undefined }
       setView(result.value)
       setError(null)
       return result.value
@@ -54,7 +57,7 @@ export function useLiveProjection<T>(load: () => Promise<RemoteResult<T>>, ident
         if (mutation) setPending(false)
       }
     }
-  }, [])
+  }, [formatFailure])
   const refresh = useCallback(async (): Promise<boolean> => (await perform(load, false)) !== undefined, [load, perform])
   const mutate = useCallback((operation: () => Promise<RemoteResult<T>>): Promise<T | undefined> => perform(operation, true), [perform])
   useEffect(() => {

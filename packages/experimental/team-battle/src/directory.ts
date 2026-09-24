@@ -1,10 +1,12 @@
 /** Hosted teams, member-bound invitation exchange, and private local connection records. */
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
-import { credentialKey } from '@deepseek-ai/dsh-credentials'
+import { credentialKey, credentialRef, type CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { defineDomain, type DomainGlobal } from '@deepseek-ai/dsh-storage-domain'
 import { z } from 'zod'
-import { TeamBattleError } from './error.ts'
+import { TeamBattleError, TeamBattleServerAuthError } from './error.ts'
+import { normalizeTeamServerUrl } from './network-url.ts'
+import { parseTeamInvitation, teamInvitationLink } from './invitation.ts'
 import { TeamBattleProject } from './project.ts'
 import type { Config } from './index.ts'
 import { executeSharedOperation } from './shared-operations.ts'
@@ -92,12 +94,7 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   if (!result.success) reject('invalid team directory request or response')
   return result.data
 }
-function origin(value: string): string {
-  let url: URL
-  try { url = new URL(value) } catch { reject('team server must be an absolute HTTP or HTTPS URL') }
-  if (!['http:', 'https:'].includes(url.protocol) || url.username !== '' || url.password !== '' || url.search !== '' || url.hash !== '') reject('team server URL cannot contain credentials, query, or fragment')
-  return url.href.replace(/\/$/, '')
-}
+
 function remoteSummary(value: unknown): TeamBattleTeamSummary {
   return parse(summarySchema, value) as TeamBattleTeamSummary
 }
@@ -109,6 +106,7 @@ export class TeamBattleDirectory {
   private tail: Promise<void> = Promise.resolve()
   private accepting = true
   private transport: TeamBattleNetworkTransport | undefined
+  private readonly sharedServer: { readonly url: string; readonly accessTokenRef: CredentialRef } | undefined
   private readonly limits: { readonly teams: number; readonly invitations: number; readonly membershipHours: number }
 
   /**
@@ -117,6 +115,9 @@ export class TeamBattleDirectory {
    * @param legacy - preserved original project.
    */
   constructor(private readonly ctx: Context, private readonly config: Config, private readonly legacy: TeamBattleProject) {
+    this.sharedServer = config.sharedServer === undefined ? undefined : {
+      url: normalizeTeamServerUrl(config.sharedServer.url), accessTokenRef: credentialRef(config.sharedServer.accessTokenRef),
+    }
     this.limits = { teams: config.maxTeams ?? 16, invitations: config.maxInvitesPerTeam ?? 64,
       membershipHours: config.membershipLifetimeHours ?? 720,
     }
@@ -201,23 +202,31 @@ export class TeamBattleDirectory {
   }
 
   /**
-   * Create locally or at an explicitly supplied shared server.
-   * @param request - team and owner metadata, with optional server permission.
+   * Create with the configured Host credential, or an explicit operator destination when unconfigured.
+   * @param request - team and owner metadata; fixed deployments reject server overrides.
    * @returns the created space.
    */
   async createTeam(request: CreateTeamRequest): Promise<TeamBattleTeamSummary> {
     const { serverUrl, serverAccessToken, ...fields } = request
     const ownerMemberToken = secret()
-    if (serverUrl === undefined) return this.createHostedTeam({ ...fields, ownerMemberToken })
-    if (serverAccessToken === undefined || serverAccessToken.trim() === '') reject('shared server creation requires its access token')
-    const base = origin(serverUrl)
     const input = parse(createSchema, { ...fields, ownerMemberToken })
+    const configured = this.sharedServer
+    if (configured !== undefined && (serverUrl !== undefined || serverAccessToken !== undefined)) reject('configured team server cannot be overridden by a project request')
+    const destination = configured?.url ?? serverUrl
+    if (destination === undefined) {
+      if (serverAccessToken !== undefined) reject('server access token requires an explicit server')
+      return this.createHostedTeam(input)
+    }
+    const base = normalizeTeamServerUrl(destination)
+    const accessToken = configured === undefined ? serverAccessToken
+      : (await this.ctx.get('credentials')?.resolve(configured.accessTokenRef))?.value
+    if (accessToken === undefined || accessToken.trim() === '') throw new TeamBattleServerAuthError()
     return this.serialize(async () => {
       const credentialId = `create-${digest(JSON.stringify([base, input.name, input.goal, input.memberName, input.memberRole]))}`
       if (!this.state().joined.some(team => team.credentialId === credentialId && team.origin === base)) this.assertCapacity()
       const retainedToken = await this.readCredential(credentialId) ?? ownerMemberToken
       await this.saveCredential(credentialId, retainedToken)
-      const result = remoteSummary(await this.network().request({ origin: base, path: 'create', body: { ...input, ownerMemberToken: retainedToken }, bearer: serverAccessToken }))
+      const result = remoteSummary(await this.network().request({ origin: base, path: 'create', body: { ...input, ownerMemberToken: retainedToken }, bearer: accessToken }))
       return this.rememberConnection(result, base, credentialId)
     })
   }
@@ -260,7 +269,11 @@ export class TeamBattleDirectory {
    */
   async createInvite(request: CreateTeamInviteRequest): Promise<CreatedTeamInvite> {
     const { teamId: selected, ...input } = request
-    return this.manage(selected, 'createInvite', input) as Promise<CreatedTeamInvite>
+    const result = await this.manage(selected, 'createInvite', input) as CreatedTeamInvite
+    const invitation = parseTeamInvitation(result.inviteCode)
+    const joined = this.state().joined.find(team => team.id === selected)
+    if (invitation.teamId !== selected || (joined !== undefined && invitation.server !== joined.origin)) reject('server returned an invitation for another team or destination')
+    return { ...result, inviteCode: teamInvitationLink(invitation) }
   }
 
   /**
@@ -282,33 +295,25 @@ export class TeamBattleDirectory {
   }
 
   /**
-   * Join with a copied invitation, replacing a same-server connection only after explicit access denial.
-   * @param request - invitation code.
-   * @returns joined team metadata.
+   * Open an existing active membership, or join with a copied invitation after explicit access denial.
+   * @param request - copied invitation link.
+   * @returns live metadata for the existing or newly joined team; active membership leaves the invitation unused.
    */
   async joinRemote(request: JoinRemoteTeamRequest): Promise<TeamBattleTeamSummary> {
-    let code: URL
-    try { code = new URL(request.inviteCode) } catch { reject('invalid team invitation code') }
-    if (code.protocol !== 'dsh-team:' || code.hostname !== 'join') reject('invalid team invitation code')
-    const base = origin(code.searchParams.get('server') ?? '')
-    const selected = TeamBattleProjectId(code.searchParams.get('team') ?? '')
-    const inviteToken = code.searchParams.get('token') ?? ''
-    if (!/^[A-Za-z0-9_-]{43,128}$/.test(inviteToken) || selected === '') reject('invalid team invitation code')
+    const { server: base, teamId: selected, token: inviteToken } = parseTeamInvitation(request.inviteCode)
+    if (this.sharedServer !== undefined && base !== this.sharedServer.url) reject('invitation belongs to a different configured team server')
     return this.serialize(async () => {
       const existing = this.state().joined.find(team => team.id === selected)
       if (existing === undefined) this.assertCapacity()
       else {
         if (existing.origin !== base) reject('an existing team cannot be replaced from a different server')
-        if (existing.localMemberId === existing.ownerMemberId) reject('the team owner cannot replace their membership with an invitation')
-        let denied = false
-        try { await this.remote(existing, 'summary', {}) } catch (error) {
+        try { return await this.remote(existing, 'summary', {}) as TeamBattleTeamSummary } catch (error) {
           if (!(error instanceof TeamBattleError) || error.code !== 'TEAM_BATTLE_ACCESS_DENIED') throw error
-          denied = true
         }
-        if (!denied) reject('this device already has active access to that team')
+        if (existing.localMemberId === existing.ownerMemberId) reject('the team owner cannot replace their membership with an invitation')
       }
       // A stable credential address makes a lost join response retry with the same device identity.
-      const credentialId = `join-${digest(request.inviteCode)}`
+      const credentialId = `join-${digest(new URL(request.inviteCode.trim()).protocol === 'dsh-team:' ? request.inviteCode : this.legacyInviteCode(base, selected, inviteToken))}`
       const existingToken = await this.readCredential(credentialId)
       const memberToken = existingToken ?? secret()
       if (existingToken === undefined) await this.saveCredential(credentialId, memberToken)
@@ -400,16 +405,15 @@ export class TeamBattleDirectory {
         if (team.invitations.length >= this.limits.invitations) reject('team invitation capacity reached')
         const chosenOrigin = fields.origin ?? this.networkStatus().origins[0]
         if (chosenOrigin === undefined) reject('start team hosting or supply the shared server URL before creating an invitation')
-        const base = origin(chosenOrigin)
+        const base = normalizeTeamServerUrl(chosenOrigin)
         const token = secret()
         const invite: Invitation = { id: `invite-${randomUUID()}`, memberId: TeamBattleMemberId(`member-${randomUUID()}`),
           memberName: fields.memberName, memberRole: fields.memberRole, tokenHash: digest(token),
           expiresAt: Date.now() + (fields.expiresInHours ?? 24) * 3_600_000, revoked: false,
         }
         await this.saveHosted({ ...team, invitations: [...team.invitations, invite] })
-        const code = new URL('dsh-team://join')
-        code.searchParams.set('server', base); code.searchParams.set('team', team.id); code.searchParams.set('token', token)
-        return { ...this.inviteView(invite), teamId: team.id, token, inviteCode: code.href }
+        return { ...this.inviteView(invite), teamId: team.id, token,
+          inviteCode: teamInvitationLink({ server: base, teamId: team.id, token }) }
       }
       case 'revokeInvite': {
         this.assertOwner(team, actor)
@@ -434,6 +438,12 @@ export class TeamBattleDirectory {
         this.assertActiveMember(team, target)
       })
     }
+  }
+
+  private legacyInviteCode(server: string, teamId: TeamBattleProjectId, token: string): string {
+    const code = new URL('dsh-team://join')
+    code.searchParams.set('server', server); code.searchParams.set('team', teamId); code.searchParams.set('token', token)
+    return code.href
   }
 
   private async manage(selected: TeamBattleProjectId, method: string, input: Record<string, unknown>): Promise<unknown> {

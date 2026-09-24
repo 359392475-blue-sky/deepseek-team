@@ -1,0 +1,70 @@
+/** Read-only invitation guidance; fragment credentials remain inside the recipient's browser. */
+
+import { createHash } from 'node:crypto'
+
+const script = `const button=document.getElementById("copy");
+const status=document.getElementById("status");
+const heading=document.getElementById("invitation-state");
+function refreshInvitationState(){
+const params=new URLSearchParams(location.hash.slice(1));
+const complete=location.search===""&&[...params.keys()].length===2&&params.getAll("team").length===1&&params.getAll("token").length===1&&/^[A-Za-z0-9_-]{1,128}$/.test(params.get("team")||"")&&/^[A-Za-z0-9_-]{43,128}$/.test(params.get("token")||"");
+button.hidden=!complete;button.textContent="复制邀请链接";
+if(complete){heading.textContent="邀请已准备好，下一步在你的团队版中加入";status.textContent="此页面尚未验证邀请是否过期。加入时会验证，请勿把邀请转发给其他人。";}
+else if(location.hash){heading.textContent="邀请链接不完整";status.textContent="请重新复制同事发来的完整链接，包含 # 后的内容；仍然失败时，请同事重新生成邀请。";}
+else{heading.textContent="和同事一起，把工作接着做完";status.textContent="请打开同事发来的完整邀请链接，再按下面的步骤加入。";}
+return complete;
+}
+refreshInvitationState();
+window.addEventListener("hashchange",refreshInvitationState);
+button.addEventListener("click",async()=>{if(!refreshInvitationState())return;const invitationUrl=location.href;try{await navigator.clipboard.writeText(invitationUrl);if(location.href!==invitationUrl)return;status.textContent="已复制。打开团队版 → 侧栏「通过邀请链接加入」→ 粘贴 →「加入这个项目」。";button.textContent="已复制邀请链接";}catch(error){if(location.href===invitationUrl)status.textContent="浏览器未允许复制。请选中地址栏，手动复制完整链接，然后粘贴到团队版中。";}});`
+
+/** Only the fixed guidance script and inline style execute; the page performs no network requests. */
+export const teamInvitationPagePolicy = `default-src 'none'; script-src 'sha256-${createHash('sha256').update(script).digest('base64')}'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`
+
+/**
+ * Render installation, join, and first-handoff guidance without redeeming the invitation.
+ * @param downloadUrl - optional administrator-provided HTTPS client download or installation page.
+ * @returns static HTML with a local copy-link action and no automatic navigation.
+ */
+export function renderTeamInvitationPage(downloadUrl?: string): string {
+  let download = ''
+  if (downloadUrl !== undefined) {
+    let url: URL
+    try { url = new URL(downloadUrl) } catch { throw new Error('invitationDownloadUrl must be an HTTPS URL') }
+    if (url.protocol !== 'https:' || url.username !== '' || url.password !== '' || url.hash !== '') {
+      throw new Error('invitationDownloadUrl must be an HTTPS URL without credentials or fragment')
+    }
+    const escaped = url.href.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    download = `<a class="download" href="${escaped}" target="_blank" rel="noopener noreferrer">下载与安装说明 ↗</a>`
+  }
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
+<title>加入团队空间 · DeepSeek 团队版</title>
+<style>
+:root{color-scheme:light;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#162b32;background:#eff5f3}*{box-sizing:border-box}body{margin:0;padding:40px 20px}main{max-width:760px;margin:auto}.brand{font-weight:700;letter-spacing:.04em;color:#39746c}.card{background:#fff;border:1px solid #d5e2de;border-radius:24px;padding:clamp(24px,5vw,48px);margin-top:20px;box-shadow:0 16px 50px #183c3310}.tag{display:inline-block;background:#e6f3ed;color:#286955;border-radius:20px;padding:4px 12px;font-size:13px}h1{font-size:clamp(25px,4vw,34px);line-height:1.4;letter-spacing:-.02em;margin:20px 0 12px}h2{font-size:19px;margin:0 0 6px}p{margin:8px 0;color:#486067}button,.download{font:inherit;font-weight:650;border-radius:12px;padding:12px 20px;display:inline-block}button{border:0;color:#fff;background:#176c5c;cursor:pointer;margin-top:16px}button:hover{background:#105245}button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #78bdae;outline-offset:4px}button[hidden]{display:none}.download{padding:8px 0;color:#176c5c}#status{min-height:3.4em;font-size:14px}ol{list-style:none;padding:0;margin:28px 0 0;counter-reset:step}li{counter-increment:step;display:grid;grid-template-columns:36px 1fr;gap:14px;margin-top:22px}li:before{content:counter(step);display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#edf4f1;color:#176c5c;font-weight:700}.note{margin-top:28px;padding-top:20px;border-top:1px solid #e2ebe8;font-size:14px}details{margin-top:20px}summary{cursor:pointer;font-size:14px;color:#39746c}footer{font-size:13px;color:#617c7c;padding:18px 4px}@media(max-width:480px){body{padding:20px 12px}.card{border-radius:18px}button{width:100%}li{gap:10px}}
+</style>
+</head>
+<body><main>
+<div class="brand">DeepSeek · 团队版</div>
+<section class="card" aria-labelledby="invitation-state">
+<span class="tag">团队空间邀请</span>
+<h1 id="invitation-state">和同事一起，把工作接着做完</h1>
+<p>在各自的 DeepSeek 中与 AI 沟通，通过同一个团队空间分享需求、产物和验收结果。</p>
+<button id="copy" type="button" hidden>复制邀请链接</button>
+<p id="status" role="status" aria-live="polite">请打开同事发来的完整邀请链接，再按下面的步骤加入。</p>
+<ol aria-label="加入团队的三个步骤">
+<li><div><h2>准备自己的团队版</h2><p>在这台电脑上安装并打开 DeepSeek 团队版，或启动本机 Web 版。首次使用请配置自己的 DeepSeek 模型服务。</p>${download}<p>没有适合这台电脑的客户端？请向邀请人获取同版本安装包或本机 Web 版启动说明。Mac 安装包不能用于 Windows。</p></div></li>
+<li><div><h2>粘贴邀请，加入项目</h2><p>复制上方邀请链接，在团队版侧栏点击「通过邀请链接加入」（空间管理中为「通过邀请加入」），粘贴后点击「加入这个项目」。看到项目名称和自己的成员身份，即表示加入成功。</p></div></li>
+<li><div><h2>接手任务，和自己的 AI 开始协作</h2><p>打开团队任务，阅读说明与已发布文件。选择「复制任务给我的 AI」，回到自己的项目对话继续工作；完成后把产物发布到空间并提交验收。</p></div></li>
+</ol>
+<div class="note"><p>个人完整对话、模型密钥和本机草稿不会自动共享。只有你明确发布的任务信息、纪要和文件会交给团队。</p><p>邀请过期、被撤销或已被其他设备使用时，请联系发起人重新邀请。本页面仅提供加入指引，点击复制不会消耗邀请。</p></div>
+<details lang="en"><summary>English instructions</summary><p>Open your own Team Edition app or local Web instance. Copy the complete invitation link, choose “Join by invitation link” in the sidebar, paste it, and confirm “Join this project”. Get a compatible client from the inviter if needed; a Mac download does not run on Windows.</p><p>Read the team's task and published files, copy the task to your own AI conversation, then publish your deliverables for review. Your private conversations and model keys are not shared automatically. This page does not redeem or validate the invitation.</p></details>
+<noscript><p>浏览器未启用 JavaScript。请手动复制地址栏的完整邀请链接，再按第 2 步加入。</p></noscript>
+</section><footer>团队空间连接协作信息，每个人保留自己的 DeepSeek。</footer>
+</main><script>${script}</script></body></html>`
+}
+
+/** Default guidance for listeners without a configured client download page. */
+export const teamInvitationPage = renderTeamInvitationPage()

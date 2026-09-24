@@ -5,6 +5,9 @@
     - id: team-battle
       name: '@deepseek-ai/dsh-experimental-team-battle'
       config:
+        sharedServer:
+          url: https://lowpower.me/team-battle
+          accessTokenRef: TEAM_BATTLE_SERVER_ACCESS_TOKEN
         projectId: lowpower-team-battle
         projectName: DeepSeek Harness 团战版
         projectGoal: 让三至四名成员与各自 Codex 围绕同一项目共享经过确认的 Context、任务与产物。

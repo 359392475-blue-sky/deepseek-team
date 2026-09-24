@@ -277,6 +277,8 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   TeamBattleNetworkTransport: 'team-battle.md',
   TeamBattleDirectoryView: 'team-battle.md',
   TeamBattleTeamSummary: 'team-battle.md',
+  TeamBattleWorkspaceLink: 'team-battle.md',
+  BindTeamWorkspaceRequest: 'team-battle.md',
   CreateTeamRequest: 'team-battle.md',
   CreateTeamInviteRequest: 'team-battle.md',
   CreatedTeamInvite: 'team-battle.md',

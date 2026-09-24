@@ -146,6 +146,7 @@
   height: 20px;
   border: 1px solid var(--flight-rule);
   border-radius: 50%;
+  corner-shape: round;
   color: var(--flight-muted);
   background: color-mix(in srgb, var(--dsw-alias-bg-base, #fff) 75%, transparent);
   font-size: 9px;

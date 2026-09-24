@@ -8,6 +8,7 @@
  * capability kind. The dialog's copy is locale-registered here — the flow
  * package owns its own strings.
  */
+import { createElement } from 'react'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the SlotMap merge declaring the directory-flow holes.
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
@@ -80,6 +81,8 @@ export function apply(ctx: ClientContext): void {
     createDirectory: (path, name) => ctx.uiWorkspace.createDirectory(path, name),
     t: ctx.locale.bind(LOCALE_NS),
   })
+  ctx.slots.registerFactory({ name: 'workspace.directoryFlow', scope: 'root' },
+    props => createElement(BrowseDirectoryFlow, { ...props, ...injected() }))
   // Both declaration lifetimes must be live before the pair installs; the
   // generator makes the two registrations one transactional effect. The
   // outer/inner nesting order is arbitrary; neither hole has precedence.

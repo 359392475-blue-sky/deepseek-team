@@ -45,4 +45,4 @@ pnpm run install:macos
 
 内置服务只绑定到 `127.0.0.1`，`NSAllowsLocalNetworking` 是唯一的 App Transport Security（应用传输安全）例外。App Sandbox（应用沙箱）保持关闭，因为 coding agent（编码智能体）及其受管进程需要访问所选 workspace 和用户配置的工具；执行控制仍由 Harness 权限策略负责。
 
-应用包仅支持 arm64，使用 ad-hoc 签名，只供这台 Mac 使用，尚未经过 notarization（公证），不能直接用于再次分发。已安装资源只读属于打包保护，并不是安全沙箱。更新时必须重新构建并测试完整应用包；不要原地修改已构建或正在运行的应用。
+默认源码构建仅支持 arm64，使用 ad-hoc 签名供本地使用，不会执行 Developer ID 签名或 Apple notarization（公证）。单独分发的团战版 ZIP 内含已使用 Developer ID 签名并通过 Apple 公证的应用，详见[下载与安装入口](../../README.zh.md#start-team-battle)。已安装资源只读属于打包保护，并不是安全沙箱。更新时必须重新构建并测试完整应用包；不要原地修改已构建或正在运行的应用。

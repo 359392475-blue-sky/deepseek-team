@@ -33,6 +33,19 @@ registerNetworkTransport(transport: TeamBattleNetworkTransport): () => void
 @Remote('teams') teams(): Promise<TeamBattleDirectoryView>
 
 /**
+ * Read explicitly selected local workspace associations without publishing them.
+ * @returns team-to-workspace links on this device.
+ */
+@Remote('workspaceLinks') workspaceLinks(): Promise<readonly TeamBattleWorkspaceLink[]>
+
+/**
+ * Associate a registered local workspace with an accessible team; replace any prior association.
+ * @param request - selected team and local workspace.
+ * @returns durable device-local links without workspace paths or Session content.
+ */
+@Remote('bindWorkspace') async bindWorkspace(request: BindTeamWorkspaceRequest): Promise<readonly TeamBattleWorkspaceLink[]>
+
+/**
  * Read current member access states and owner-only invitation details.
  * @param request - selected team.
  * @returns authenticated team summary.
@@ -40,8 +53,8 @@ registerNetworkTransport(transport: TeamBattleNetworkTransport): () => void
 @Remote('summary') summary(request: TeamBattleActorRequest): Promise<TeamBattleTeamSummary>
 
 /**
- * Create an owner-only team locally or on a shared server.
- * @param request - metadata and optional shared server credential.
+ * Create an owner-only team using configured Host authorization when available.
+ * @param request - project metadata; configured Hosts reject server overrides.
  * @returns created team.
  */
 @Remote('createTeam') createTeam(request: CreateTeamRequest): Promise<TeamBattleTeamSummary>
@@ -68,9 +81,9 @@ registerNetworkTransport(transport: TeamBattleNetworkTransport): () => void
 @Remote('revokeMember') revokeMember(request: RevokeTeamMemberRequest): Promise<TeamBattleTeamSummary>
 
 /**
- * Join with an invitation; expired or revoked same-server membership can be replaced.
+ * Open existing active access or join with an invitation; expired or revoked same-server membership can be replaced.
  * @param request - invitation code.
- * @returns joined team.
+ * @returns the existing or newly joined team, without consuming an invitation for active access.
  */
 @Remote('joinRemote') joinRemote(request: JoinRemoteTeamRequest): Promise<TeamBattleTeamSummary>
 

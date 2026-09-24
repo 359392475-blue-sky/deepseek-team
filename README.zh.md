@@ -2,131 +2,86 @@
 
 [English](README.md) | 中文
 
-本仓库提供基于上游 DeepSeek Harness `0.1.7-alpha.2` 的 **团战版 0.1 协作版本**，包含前端、后端、固定共享服务器实现和原生 macOS 外壳。早期浏览器原型保留在 [`legacy-prototype/`](legacy-prototype/)。
+各自使用自己的 AI（人工智能），通过团队空间协作。团战版让同事共享决策、文件、任务和验收反馈，下一位成员可以带着这些信息，在自己的 DeepSeek 对话中继续工作。
 
+这是基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) `0.1.7-alpha.2` 的独立开源协作版本，并非 DeepSeek 官方团队产品。项目处于早期预览阶段，API 与存储数据格式可能变化。
+
+[下载与安装指南](https://lowpower.me/team-battle-downloads/) · [GitHub 发布版本](https://github.com/359392475-blue-sky/deepseek-team/releases) · [试玩协作案例](https://lowpower.me/team-battle-demo/) · [MIT 许可证](LICENSE)
+
+## 目录
+
+- [团队协作](#team-collaboration)
+- [开始协作](#start-team-battle)
+- [贪吃蛇协作案例](#collaboration-example)
+- [从源码开发](#run-from-source)
+- [上游与许可证](#upstream-deepseek-harness)
+
+<a id="team-collaboration"></a>
 ## 团队协作
 
-- 创建和选择团队项目，为指定同事生成邀请，并从另一个本机客户端加入。
-- 通过固定 HTTPS 服务器共享任务、填写的协作纪要、明确发布的文件和验收意见。
-- 认领或交接任务，提交产物，退回修改，再验收修订结果。
-- 模型密钥、私人 AI 对话和未发布文件保留在各成员自己的设备上。
-- 等待 AI 时可使用紧凑、可收起的飞机小游戏；团战版 profile（配置组合）屏蔽轨迹入口。
+每位同事运行独立客户端，使用自己的模型凭据和私人对话。共享 HTTPS 服务器仅保存成员明确发布的项目信息。
 
-## 启动团战版
-
-请使用本仓库源码。**官方 npm 包和下文的上游命令启动标准 DeepSeek Harness，不包含这里的团战版定制。**
-
-1. 按[开发环境说明](docs/development.zh.md)准备 Node.js 和 pnpm，安装依赖并构建源码。仓库声明 Node.js `^22.19.0 || >=24.0.0` 和 pnpm `11.7.0`。
-2. 使用 Web 客户端时，按[团战版 profile 配置](packages/experimental/team-battle-profile/README.zh.md#use-this-package)加入 Web 和团队配置层，再启动 `team-battle` profile。
-3. 使用 Apple Silicon macOS 应用时，按[构建与安装说明](apps/macos/README.zh.md)操作。本次源码发布不提供经过公证的 macOS 安装包下载。
-4. 跨网络协作需要部署[共享 HTTPS 团队服务器](packages/experimental/team-battle-connector-http/README.zh.md#shared-team-server)。项目发起人向服务器管理员获取完整创建授权码；同事使用各自的邀请加入，并保留自己的模型配置。
-
-共享服务器保存已发布的项目数据，不会同步工作目录或自动运行同事的 AI。[创建、加入、发布与交接指南](packages/experimental/client-ui-team-battle/README.zh.md)介绍完整使用路径。
-
-## 源码入口
-
-| 组件 | 源码与说明 |
+| 团队空间中共享的内容 | 保留在各成员设备上的内容 |
 | --- | --- |
-| 团队页面与可选小游戏 | [前端](packages/experimental/client-ui-team-battle/README.zh.md) |
-| 项目、成员、任务、文件和验收 | [后端](packages/experimental/team-battle/README.zh.md) |
-| 共享服务器与 HTTP 通信 | [服务器部署](packages/experimental/team-battle-connector-http/README.zh.md) |
-| 原生 macOS 应用 | [应用外壳](apps/macos/README.zh.md) |
+| 项目目标、成员、任务与交接 | 模型凭据与设置 |
+| 已发布的 context（上下文）：决策、阻塞和下一步 | 私人 AI 对话与未提交草稿 |
+| 选定的文件、版本标签与验收反馈 | 未发布的文件与工作目录 |
 
-这是源码发布。仓库完整保留上游工作流文件，但本个人展示仓库不运行上游自动流水线。原有 MIT 许可证及第三方声明保持完整。以下章节介绍上游项目。
+成员把已发布的上下文复制到自己的 AI 对话，并下载需要的文件。团队空间不会同步工作目录，也不会自动运行另一位成员的 AI。[团队空间指南](packages/experimental/client-ui-team-battle/README.zh.md)介绍发布、交接与验收的具体操作。
 
-## 上游 DeepSeek Harness
+<a id="start-team-battle"></a>
+## 开始协作
 
-DeepSeek Harness（`dsh`）是由 [DeepSeek AI](https://deepseek.com) 开发的开源 agent harness（智能体框架）。
+下载版应用支持 **Apple Silicon Mac，系统要求 macOS 15 或更高版本**。分发 ZIP 内的应用已使用 Developer ID 签名并通过 Apple 公证，详见[安装指南](https://lowpower.me/team-battle-downloads/)。目前不提供 Intel Mac 或 Windows 安装包。
 
-它构建于**一切皆插件**的架构之上，由 [Cordis](https://github.com/cordiverse/cordis) 驱动，其设计参见论文 [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512)。
+1. 每位同事安装应用，选择自己的本地项目目录，并配置自己的[模型提供方](docs/user/guide/providers.zh.md)。
+2. 项目发起人先配置[共享服务器与创建凭据](packages/experimental/team-battle-connector-http/README.zh.md#shared-team-server)，再选择“发起团队项目”，填写目标并邀请同事。创建凭据由服务器管理员提供，受邀同事无需持有。
+3. 同事打开邀请链接，查看安装与加入说明，复制完整链接，再粘贴到自己应用的“通过邀请加入”中。成功加入后会打开共享项目。
+4. 发起人与自己的 AI 沟通，将有用的上下文和选定文件发布到空间。同事通过“复制任务给我的 AI”或“复制共享上下文给我的 AI”获取信息，下载引用的文件，再在自己的对话中接着工作。
+5. 同事发布产物并提交验收。另一位成员验收通过或退回修改；作者修订后再次提交，直到任务通过验收。
 
-文档：[https://deepseek-harness.github.io/deepseek-harness/](https://deepseek-harness.github.io/deepseek-harness/)
+邀请过期或被撤销时，请发起人生成新链接。无法直接复制时，可选中应用显示的文本手动复制。修订文件需要使用新名称或版本目录；发生重名冲突时，已选文件和填写的草稿会保留，改名后即可重试。
 
-### 开发者预览
+<a id="collaboration-example"></a>
+## 贪吃蛇协作案例
 
-DeepSeek Harness 处于 _开发者预览_ 阶段，正在快速迭代。**未来将出现破坏兼容性的变更。**
+[试玩协作完成的贪吃蛇游戏](https://lowpower.me/team-battle-demo/)。案例由产品经理和研发完成市场调研、产品需求文档、开发、独立产品验收、修订与通过验收。两个角色各自与自己的 DeepSeek 沟通，通过共享上下文、文件、任务和验收意见交接工作。
 
-运行本项目前，请阅读[安全说明](SAFETY.zh.md)。
+这次演练使用同一台 Mac 上两套隔离的 DeepSeek 实例和成员身份，通过公网团队服务器协作，验证了上述使用链路；它不代表已经覆盖两台物理电脑或真实移动设备。游戏交付范围不包含音效。
 
 <a id="run"></a>
 
-### 运行
-
-#### 通过 `npm` 运行
-
-安装 `Node.js`，然后运行：
-
-```sh
-npx @deepseek-ai/dsh web
-```
-
-该命令默认会在 `http://127.0.0.1:3080` 启动 Web UI，本机启动时还会用默认浏览器打开页面。通过 SSH 启动时只打印宿主机 URL，因为本地转发地址由 SSH 客户端或编辑器持有。传入 `--no-open` 可仅运行服务器而不打开浏览器。详见 [Web UI 指南](docs/user/guide/index.zh.md)。
-
 <a id="run-from-source"></a>
+## 从源码开发
 
-#### 从源码运行
+请使用本仓库构建团战版。官方 npm 包启动的是标准 DeepSeek Harness，不包含这些定制。[开发指南](docs/development.zh.md)介绍环境准备；本仓库要求 Node.js `^22.19.0 || >=24.0.0` 和 pnpm `11.7.0`。
 
-如需从仓库源码运行：
+在仓库根目录运行：
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
 pnpm install
 pnpm run build
-pnpm dsh web
 ```
 
-`pnpm run build` 会准备仓库产物。`pnpm dsh web` 会直接使用这些已构建产物，不会重新构建。
+随后按[团战版 profile（配置组合）说明](packages/experimental/team-battle-profile/README.zh.md#use-this-package)启动 Web 客户端，或按 [macOS 构建指南](apps/macos/README.zh.md)构建原生应用。运行 agent（智能体）前，请阅读[安全说明](SAFETY.zh.md)。
 
-### 社区与支持
+<a id="source-map"></a>
+### 源码入口
 
-- 通过 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 提交反馈或 bug 报告。
-- 为你的插件仓库添加 [`dsh-plugin`](https://github.com/topics/dsh-plugin) 话题，便于被发现。
-- 欢迎加入 DeepSeek Harness 企微群：扫码添加企微小助手并填写入群问卷，完成后小助手会邀请你入群。
+| 模块 | 说明 |
+| --- | --- |
+| 团队界面与协作流程 | [客户端](packages/experimental/client-ui-team-battle/README.zh.md) |
+| 项目、成员、任务、文件与验收 | [团队服务](packages/experimental/team-battle/README.zh.md) |
+| 共享服务器与 HTTP 通信 | [服务器部署](packages/experimental/team-battle-connector-http/README.zh.md) |
+| 原生 macOS 应用 | [应用外壳](apps/macos/README.zh.md) |
 
-<table>
-  <thead>
-    <tr>
-      <th align="center">企微小助手</th>
-      <th align="center">入群问卷</th>
-      <th align="center">微信公众号</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td align="center"><img src="https://cdn.deepseek.com/harness/readme/community-wecom-assistant.png" alt="DeepSeek Harness 企微小助手二维码" width="180" height="180"></td>
-      <td align="center"><a href="https://trtgsjkv6r.feishu.cn/share/base/form/shrcnIt5twSVdLGD52KJBckGCgg"><img src="https://cdn.deepseek.com/harness/readme/community-wecom-survey.png" alt="DeepSeek Harness 入群问卷二维码" width="180" height="180"></a></td>
-      <td align="center"><img src="https://cdn.deepseek.com/harness/readme/community-wechat-official-account.png" alt="DeepSeek Harness 团队微信公众号二维码" width="180" height="180"></td>
-    </tr>
-  </tbody>
-</table>
+参与贡献请阅读 [CONTRIBUTING.md](CONTRIBUTING.zh.md)、[架构指南](docs/architecture.zh.md)与 [AGENTS.md](AGENTS.md)。团战版问题请提交到[本仓库](https://github.com/359392475-blue-sky/deepseek-team/issues)。早期浏览器原型保留在 [`legacy-prototype/`](legacy-prototype/)。
 
-### 参与贡献
+<a id="upstream-deepseek-harness"></a>
+## 上游与许可证
 
-参见 [CONTRIBUTING.md](CONTRIBUTING.zh.md)。
+上游 DeepSeek Harness 智能体框架由 [DeepSeek AI](https://deepseek.com) 开发，基于 [Cordis](https://github.com/cordiverse/cordis) 构建。插件架构与通用功能详见[上游文档](https://deepseek-harness.github.io/deepseek-harness/)。
 
-### 开发
+<a id="license"></a>
 
-请先阅读[开发指南](docs/development.zh.md)与[架构文档](docs/architecture.zh.md)。
-
-`pnpm run dev:web` 会在一个终端里完成构建、启动，并在源码修改时重建 client bundle；`make help` 列出 Web 与 Desktop 对应的 Make target。完整表格见开发指南的「应用命令」一节。
-
-面向 agent：请遵循 [AGENTS.md](AGENTS.md)。
-
-### 引用
-
-```bibtex
-@misc{deepseek-harness2026,
-  title={DeepSeek Harness: Everything is a Plugin},
-  author={DeepSeek-AI},
-  year={2026},
-  publisher={GitHub},
-  howpublished={\url{https://github.com/deepseek-ai/deepseek-harness}},
-}
-```
-
-### 许可证
-
-[MIT](LICENSE)
-
-第三方依赖及其许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+本项目采用 [MIT 许可证](LICENSE)开源，保留上游版权声明。第三方组件遵循各自的许可证，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

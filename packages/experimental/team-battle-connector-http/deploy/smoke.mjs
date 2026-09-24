@@ -14,6 +14,7 @@ const home = await mkdtemp(join(tmpdir(), 'dsh-team-artifact-smoke-'))
 const profile = join(home, 'profiles/team-server')
 const ownerToken = randomBytes(32).toString('base64url')
 const deploymentToken = randomBytes(32).toString('base64url')
+const colleagueToken = randomBytes(32).toString('base64url')
 let child
 
 async function start() {
@@ -61,6 +62,10 @@ try {
   const path = join(profile, 'cordis.patch.yml')
   await writeFile(path, (await readFile(path, 'utf8')).replace('port: 18864', 'port: 0'))
   const origin = await start()
+  const landing = await fetch(`${origin}/`)
+  assert.equal(landing.status, 200)
+  assert.match(landing.headers.get('content-type'), /^text\/html/)
+  assert.match(await landing.text(), /通过邀请链接加入/)
   assert.equal((await fetch(`${origin}/api/sessions/list`)).status, 404)
   assert.equal((await post(origin, 'create', {}, 'invalid')).status, 401)
   const response = await post(origin, 'create', {
@@ -69,14 +74,39 @@ try {
   assert.equal(response.status, 200)
   const created = await response.json()
   assert.equal(created.name, 'Artifact smoke project')
+  const inviteResponse = await post(origin, 'call', {
+    teamId: created.id, method: 'createInvite', input: { memberName: 'Engineer', memberRole: 'Engineering', origin },
+  }, ownerToken)
+  assert.equal(inviteResponse.status, 200)
+  const invitation = await inviteResponse.json()
+  const fragment = new URLSearchParams(new URL(invitation.inviteCode).hash.slice(1))
+  const joinBody = { teamId: fragment.get('team'), inviteToken: fragment.get('token'), memberToken: colleagueToken }
+  const joinedResponse = await post(origin, 'join', joinBody, colleagueToken)
+  assert.equal(joinedResponse.status, 200)
+  const colleague = await joinedResponse.json()
+  assert.notEqual(colleague.localMemberId, created.localMemberId)
+  assert.equal(colleague.localMemberId, invitation.memberId)
+  assert.equal((await post(origin, 'join', { ...joinBody, memberToken: randomBytes(32).toString('base64url') }, colleagueToken)).status, 403)
+  const shared = await post(origin, 'call', {
+    teamId: created.id, method: 'publishContext', input: { summary: 'Product handoff for colleague', nextSteps: ['Build the agreed game'] },
+  }, ownerToken)
+  assert.equal(shared.status, 200)
   await stop()
   const restarted = await start()
   const summary = await post(restarted, 'call', { teamId: created.id, method: 'summary', input: {} }, ownerToken)
   assert.equal(summary.status, 200)
   assert.equal((await summary.json()).id, created.id)
+  const colleagueSummary = await post(restarted, 'call', { teamId: created.id, method: 'summary', input: {} }, colleagueToken)
+  assert.equal(colleagueSummary.status, 200)
+  assert.equal((await colleagueSummary.json()).localMemberId, colleague.localMemberId)
+  const colleagueView = await post(restarted, 'call', { teamId: created.id, method: 'view', input: {} }, colleagueToken)
+  assert.equal(colleagueView.status, 200)
+  assert.match(JSON.stringify(await colleagueView.json()), /Product handoff for colleague/)
+  assert.equal((await post(restarted, 'call', { teamId: created.id, method: 'createInvite', input: { memberName: 'Other', memberRole: 'Test', origin: restarted } }, colleagueToken)).status, 403)
+  assert.equal((await fetch(`${restarted}/`)).status, 200)
   assert.equal((await post(restarted, 'call', { teamId: created.id, method: 'sessions.list', input: {} }, ownerToken)).status, 403)
   await stop()
-  console.log(JSON.stringify({ runtime, cli: 'dsh --profile team-server', restartPersistence: true, privateApiUnavailable: true }))
+  console.log(JSON.stringify({ runtime, cli: 'dsh --profile team-server', invitationLanding: true, independentMemberJoin: true, sharedContextReadback: true, restartPersistence: true, privateApiUnavailable: true }))
 } finally {
   await stop()
   await rm(home, { recursive: true, force: true })

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This private Web package presents the authoritative Team Battle project as a root-level `Team Space` page and adds an optional flight game beside ordinary Chat. Both surfaces call the generated `ctx.remote.teamBattle` service; neither stores a second project model. The Team view manages members, weighted tasks, published Context, artifact provenance, human review, and activity. The game uses browser-local score and lives, while Query-derived weapon grants, the leisure combat shield, project progress, and core HP remain Host projections.
+Create a shared project, invite colleagues, publish selected files, and move tasks through handoff and independent review. Team Space shares the application sidebar and light or dark theme; associated local conversations show the project’s active members. Personal conversations remain on each device. An optional flight game provides a break while AI works without changing project progress.
 
 Use this package through the experimental Team Battle Web profile. It is not a stable public extension point.
 
@@ -28,15 +28,15 @@ Apply [`@deepseek-ai/dsh-experimental-team-battle-web-profile`](../team-battle-w
 
 ### Work in Team Space
 
-Select **Team Space** in the sidebar, or open the application with `#team` (also accepts `?team=1`). No private session is required. The conversation view also retains a Team entry. The page polls the Team and file projections and sends a presence heartbeat. It provides:
+Select **Team Space** near New Session and Plugins in the main sidebar, or open the application with `#team` (also accepts `?team=1`). Joined server projects appear above personal workspaces in the same sidebar. The selected project opens in the main column with its goal and active collaborators; no second sidebar is drawn. No private session is required, and the conversation view retains a Team entry. The page polls Team and file projections and sends a presence heartbeat. It provides:
 
-- a project selector, server-space creation, one-use invitations, membership management, and current presence;
-- a file table with folders, breadcrumbs, sorting, selection, and version/provenance details;
+- a shared project list, focused creation and joining dialogs, one-use invitation links, membership management, and current presence;
+- a file table with folders, breadcrumbs, sorting, selection, and version and source details;
 - explicit byte uploads, safe image/text previews, downloads, renaming, and deletion;
 - downloads for personal AI work, plus a legacy local Codex delivery queue whose status changes only after receiver acknowledgment;
 - create, edit, claim, hand off, release, submit, reopen, and delete task actions with displayed revisions;
 - explicit Context publication with decisions, blockers, next steps, and source references;
-- artifact metadata publication with task, URI, media type, byte count, and SHA-256 provenance;
+- artifact metadata publication with task, URI, media type, byte count, and SHA-256 digest;
 - terminal human review as accepted or changes requested; and
 - current activity, project revision, and accepted-weight progress.
 
@@ -48,11 +48,13 @@ An accepted artifact may complete its task. Completed tasks therefore have no re
 
 ### Start or join a server project
 
-Use **Start a project** to enter the shared HTTPS server address, its administrator-provided creation authorization code, the project name and goal, and your name and role. The local Host stores your member credential; browser storage holds only the selected project ID. **Invite a colleague** generates an expiring, one-use invitation with a specified name and role. The colleague pastes it into **Join with an invitation** in their own app. The owner can revoke pending invitations and remove members; previously published work remains available to remaining members. The selected space displays its shared data location. The existing configured project remains explicitly labeled as local simulation.
+Use **Start a team project** from the home composer or team sidebar to enter the project name and goal and your name and role. The focused form contains no management tabs, server address, or authorization-code field. The Host uses the configured shared server and resolves its creation credential locally. It stores the returned member credential; browser storage holds only the selected project ID. If the service rejects authorization, the form asks the administrator to check the service configuration and retains the project fields for retry.
 
-Get the complete creation authorization code from the server's deployment administrator. It is not a new project password or a personal model API key. If the server rejects it, the form explains how to check the server address and code while retaining the project and member fields for retry. Successful creation clears the code; it is never saved in browser storage.
+After creation, **Invite a colleague** generates an expiring, one-use HTTPS invitation link with a specified name and role. Copy the link and paste it into **Join with an invitation** in the colleague’s app; successful joining opens the project. Failed joining retains the link and explains incomplete, expired, revoked, used, or offline recovery; technical details are collapsed with invitation credentials removed. The owner can revoke pending invitations and remove members while retaining published work for remaining members. **What is shared?** explains publication and displays the shared data location.
 
-Members keep their model configuration, sessions, and unpublished working directories on their own devices. Tasks can be copied into a personal AI conversation, and shared files can be downloaded. The shared space does not synchronize source directories or start another member's agent. Tasks, entered meeting notes, explicitly selected complete files, review decisions, and member presence are shared. The upload dialog names the destination and explains publication before sending bytes. Hosted and joined spaces do not offer the legacy Codex queue because their local connector cannot consume that server queue.
+Use **Open project conversation** beside a sidebar project to choose an existing local workspace or another local folder. The Host saves this device’s project association without uploading the directory. The home composer and conversation header then show only active members of that associated project. Unlinked personal workspaces show no team roster.
+
+Members keep their model configuration, sessions, and unpublished working directories on their own devices. **Copy task for my AI** includes the project goal, the member's role, published notes in chronological order, shared file paths, version labels and IDs, and the task's review feedback. **Copy shared context for my AI** on Meeting notes includes all tasks and reviews. Clipboard failure exposes selectable text; unpublished form drafts are excluded. File contents must be downloaded separately into the member's project folder. The shared space does not synchronize source directories or start another member's agent. Tasks, entered meeting notes, explicitly selected complete files, review decisions, and member presence are shared. The upload dialog names the destination and explains publication before sending bytes. Published file contents are immutable: version labels do not overwrite files. A sibling file or folder with the same name blocks publication; local checks and server conflict responses retain the selected file and form input for renaming. Publish revisions under new names or in separate version folders. Hosted and joined spaces do not offer the legacy Codex queue because their local connector cannot consume that server queue.
 
 The task page explains the sequence from creation through claim or handoff, explicit file publication and submission, independent review, and completion or revision. Handoff selects an active next assignee and can publish a note. No private transcript is attached. The space owner can reassign unfinished work; the current assignee can pass on their own work. The Team profile hides the Trajectory view.
 
@@ -69,9 +71,11 @@ The canvas uses the original assets in [`src/assets`](src/assets), copied from t
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-[`src/client/mount.ts`](src/client/mount.ts) mounts the generated Remote contribution, registers bilingual dictionaries, and contributes disposable root navigation and `shell.overlay` entries, list entry `team` in `conversation.view`, and the single `conversation.chat.sidecar` flight panel. The root page preserves private conversation state beneath it. Actions return typed Remote carriers for the project, file-space, or file-content projection.
+[`src/client/mount.ts`](src/client/mount.ts) mounts the generated Remote contribution, bilingual dictionaries, a keyed `main` panel, navigation in `sidebar.panellist`, and the shared project list in `sidebar.sections`. It also contributes home actions, the Team Edition badge, workspace-associated members in the conversation header, the `team` conversation view, and the single flight sidecar. The application shell owns navigation and conversation state. Actions return typed Remote results.
 
 [`src/client/useTeamBattleLive.ts`](src/client/useTeamBattleLive.ts) performs latest-wins polling, suppresses poll commits while a mutation is in flight, and reports presence. Every successful mutation replaces the complete projection. [`src/client/TeamSpaceView.tsx`](src/client/TeamSpaceView.tsx) owns transient forms and tab selection. [`src/client/FlightCanvas.tsx`](src/client/FlightCanvas.tsx) owns only non-durable movement, enemies, collisions, score, and lives.
+
+No runtime invariant companion is published: the package renders Host projections and keeps disposable browser game state, with no independently observed runtime relationship to compare.
 
 </details>
 
@@ -88,11 +92,11 @@ The canvas uses the original assets in [`src/assets`](src/assets), copied from t
 
 #### What the model sees
 
-Nothing from this package. It registers no model-facing prompt, tool, or Session event; `ctx.remote.teamBattle` reads and mutations stay outside model history.
+The package does not automatically add model input. Clipboard actions prepare localized text from published project data for the user to paste into a personal conversation. That text enters model history only when the user sends it through the normal composer. The package registers no model-facing tool or Session event; `ctx.remote.teamBattle` reads and mutations stay outside model history.
 
 #### Token effect
 
-Zero direct tokens. Polling, presence, form submissions, game frames, and weapon consumption do not enter a model request.
+Zero direct tokens. Polling, presence, form submissions, game frames, and weapon consumption do not enter a model request. A user-sent shared-context message consumes tokens according to the copied project content.
 
 #### KV Cache effect
 
@@ -102,6 +106,7 @@ Independent. Browser-only reads and mutations do not alter the model request or 
 
 - **Polling rather than push** — each mounted surface refreshes periodically; the first version does not consume a dedicated browser event stream.
 - **Explicit file exchange** — server membership shares published artifacts, not a synchronized source checkout or remote control of colleagues’ AI.
+- **Invitation link landing page** — pasting the link in the client joins the project. Opening it in a browser requires the shared server’s invitation page to be deployed; this client package does not deploy that page.
 - **Receiver setup** — file delivery requires an authenticated Codex connector to pull and acknowledge the queue; this client does not install or run external agents.
 - **Local leisure state** — refreshing the page resets flight score, lives, enemies, and pause state by design.
 
@@ -110,6 +115,6 @@ Independent. Browser-only reads and mutations do not alter the model request or 
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-The flight composition follows `apps/web/prototypes/team-battle-flight/concepts/chat-game-v3/unified-flight-deck.png`; Team Space follows `team-space-page.png`. Keep project progress and leisure combat state visibly and behaviorally separate. Do not add game callbacks that mutate tasks, artifact review, or accepted-weight progress.
+The flight composition follows `apps/web/prototypes/team-battle-flight/concepts/chat-game-v3/unified-flight-deck.png`. Team Space uses the application’s theme tokens and shared control primitives. Keep project progress and leisure combat state visibly and behaviorally separate; game callbacks must not mutate tasks, artifact review, or accepted-weight progress.
 
 </details>

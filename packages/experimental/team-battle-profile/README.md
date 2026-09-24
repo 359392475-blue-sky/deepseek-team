@@ -36,6 +36,8 @@ pnpm dsh --profile team-battle
 
 Edit the patch before deployment to replace the starter member names, project objective, limits, local member identity, and presence timeout. `memberOfflineAfterMs` prevents a disconnected member from remaining visibly online; the starter layer uses 60 seconds. The default four roles are Product, Engineering, Quality, and UI; they are configuration, not a fixed permission model. The preserved local space displays the JSON storage directory resolved from `DSH_HOME`; server projects display their connected server address.
 
+Project creation uses this Host layer’s `sharedServer` configuration, defaulting to `https://lowpower.me/team-battle` and credential reference `TEAM_BATTLE_SERVER_ACCESS_TOKEN`. Keep the value in the creating Host’s credential provider. Cordis replaces an entry’s `config` object when a later patch supplies one; an override must retain the required project fields and roster, not supply only `sharedServer`. The Web layer leaves the Host entry unchanged.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -45,6 +47,8 @@ Edit the patch before deployment to replace the starter member names, project ob
 <summary>Implementation internals</summary>
 
 The package contains no runtime plugin body. [`cordis.patch.yml`](cordis.patch.yml) inserts `@deepseek-ai/dsh-experimental-team-battle` after `dsh-base`, whose storage hub, JSON backend, and domain form provide durable project state. The Team Battle service owns member, task, context, artifact, review, activity, Query-grant, and project-progress semantics.
+
+No runtime invariant companion is published because this bundle contains only static composition and owns no runtime state; the configured services own their live relationships.
 
 </details>
 

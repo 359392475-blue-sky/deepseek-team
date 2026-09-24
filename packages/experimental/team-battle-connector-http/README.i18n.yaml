@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/experimental/team-battle-connector-http/README.md
-README.md: 4f789458276cfe4505e97da4842e11e9c48ddc82
-README.zh.md: 282edbffffc1e9e35f151d5012e7eb13413d6e15
+README.md: 330279f9379ee3a0fccdbd09ae8af54d97f53048
+README.zh.md: f75a68f6dc016dfabc06e5070ad1e0b126d25517

@@ -3,11 +3,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { TeamBattleView } from '@deepseek-ai/dsh-experimental-team-battle/client'
+import { TeamBattleFileId, TeamBattleMemberId, TeamBattleProjectId, TeamBattleWeaponId } from '@deepseek-ai/dsh-experimental-team-battle/src/types.ts'
 import type {} from '@deepseek-ai/dsh-experimental-team-battle/remote'
 import type { TypertRemoteContribution } from '@deepseek-ai/dsh-typert-protocol'
 import { FlightGamePanel } from '../src/client/FlightGamePanel.tsx'
 import { inject, mountTeamBattleUi } from '../src/client/mount.ts'
 import { TeamSpaceView } from '../src/client/TeamSpaceView.tsx'
+import type { TeamBattleInjected, TeamCollaborationInjected } from '../src/client/actions.ts'
 import { RootTeamSpace, TeamSpaceEntry } from '../src/client/RootTeamSpace.tsx'
 import { apply as nodeApply } from '../src/index.ts'
 
@@ -16,10 +18,11 @@ const REMOTE: TypertRemoteContribution = {
   descriptors: [],
 }
 
-const view = {
+const view: TeamBattleView = {
+  simulationEnabled: false,
   revision: 1,
-  localMemberId: 'product',
-  project: { name: 'Team Battle', goal: 'Ship together' },
+  localMemberId: TeamBattleMemberId('product'),
+  project: { id: TeamBattleProjectId('project-1'), name: 'Team Battle', goal: 'Ship together' },
   members: [],
   tasks: [],
   contexts: [],
@@ -28,7 +31,7 @@ const view = {
   weaponGrants: [],
   progress: { acceptedWeight: 0, totalWeight: 0, percent: 0, coreHp: 100, coreMaxHp: 100 },
   combatShield: { hp: 100, maxHp: 100 },
-} as unknown as TeamBattleView
+}
 
 async function bench(failRegistration = false) {
   const ctx = new Context()
@@ -63,6 +66,11 @@ async function bench(failRegistration = false) {
     sendFile: answer('sendFile'),
     submitFile: answer('submitFile'),
   })
+  ctx.provide('layout', { selectPanel: vi.fn() })
+  const pickDirectory = vi.fn(() => { throw new Error('native picker is unavailable') })
+  const createWorkspace = vi.fn(async () => ({ workspaceId: 'selected-workspace' }))
+  ctx.provide('uiWorkspace', { openWorkspace: vi.fn(), pickDirectory })
+  ctx.provide('workspaces', { create: createWorkspace })
   ctx.provide('locale', new LocaleRuntime(ctx))
   await ctx.plugin(SlotRegistry).await()
   const root = ctx.slots.register({
@@ -71,13 +79,18 @@ async function bench(failRegistration = false) {
       'conversation.view': { kind: 'list', scope: 'session' },
       'conversation.chat.sidecar': { kind: 'single', scope: 'session' },
       'shell.overlay': { kind: 'list', scope: 'root' },
-      'sidebar.footer.action': { kind: 'list', scope: 'root' },
+      'sidebar.panellist': { kind: 'list', scope: 'root' },
+      'sidebar.sections': { kind: 'list', scope: 'root' },
+      'main': { kind: 'keyed', scope: 'root' },
+      'conversation.hero.badge': { kind: 'single', scope: 'root' },
+      'conversation.hero.actions': { kind: 'list', scope: 'root' },
+      'conversation.session.header.collaboration': { kind: 'list', scope: 'session' },
     },
   } as never, () => null)
   if (failRegistration) vi.spyOn(ctx.slots, 'inject').mockImplementationOnce(() => { throw new Error('slot failure') })
   const activation = mountTeamBattleUi(ctx, REMOTE)
   const dispose = failRegistration ? undefined : await activation
-  return { ctx, calls, remote, root, activation, dispose }
+  return { ctx, calls, remote, root, activation, dispose, pickDirectory, createWorkspace }
 }
 
 describe('Team Battle browser plugin', () => {
@@ -87,28 +100,28 @@ describe('Team Battle browser plugin', () => {
 
   it('mounts the generated Remote and registers disposable Team and flight surfaces', async () => {
     const b = await bench()
-    expect(inject).toEqual(['remote', 'slots', 'locale'])
+    expect(inject).toEqual(['remote', 'slots', 'locale', 'layout', 'uiWorkspace', 'workspaces'])
     const team = b.ctx.slots.entries('conversation.view').find(entry => entry.component === TeamSpaceView)
     const game = b.ctx.slots.entries('conversation.chat.sidecar').find(entry => entry.component === FlightGamePanel)
     expect(team).toMatchObject({ options: { id: 'team', order: 20 }, locale: 'team-battle' })
     expect(team?.options.label instanceof Function ? team.options.label() : team?.options.label).toBe('Team Space')
     expect(game).toMatchObject({ locale: 'team-battle' })
-    expect(b.ctx.slots.entries('shell.overlay').find(entry => entry.component === RootTeamSpace)).toBeDefined()
-    expect(b.ctx.slots.entries('sidebar.footer.action').find(entry => entry.component === TeamSpaceEntry)).toBeDefined()
+    expect(b.ctx.slots.entries('main').find(entry => entry.component === RootTeamSpace)).toBeDefined()
+    expect(b.ctx.slots.entries('sidebar.panellist').find(entry => entry.component === TeamSpaceEntry)).toBeDefined()
     expect(b.remote.mount).toHaveBeenCalledWith(REMOTE)
 
-    const actions = (team!.inject as unknown as () => Record<string, (...args: unknown[]) => Promise<unknown>>)()
-    await actions.load!()
-    await actions.createTask!({ title: 'Ship', description: 'Together', weight: 5 })
-    await actions.consumeWeapon!({ weaponId: 'weapon-1' })
-    await actions.space!()
-    await actions.sendFile!({ fileId: 'file-1', expectedRevision: 1 })
+    const actions = team!.inject!() as Pick<TeamBattleInjected, 'load' | 'createTask' | 'consumeWeapon' | 'space' | 'sendFile'>
+    await actions.load()
+    await actions.createTask({ title: 'Ship', description: 'Together', weight: 5 })
+    await actions.consumeWeapon({ weaponId: TeamBattleWeaponId('weapon-1') })
+    await actions.space()
+    await actions.sendFile({ fileId: TeamBattleFileId('file-1'), expectedRevision: 1 })
     expect(b.calls.map(call => call.method)).toEqual(['view', 'createTask', 'consumeWeapon', 'space', 'sendFile'])
 
     await b.dispose!()
     expect(b.ctx.slots.entries('conversation.view').find(entry => entry.component === TeamSpaceView)).toBeUndefined()
-    expect(b.ctx.slots.entries('shell.overlay').find(entry => entry.component === RootTeamSpace)).toBeUndefined()
-    expect(b.ctx.slots.entries('sidebar.footer.action').find(entry => entry.component === TeamSpaceEntry)).toBeUndefined()
+    expect(b.ctx.slots.entries('main').find(entry => entry.component === RootTeamSpace)).toBeUndefined()
+    expect(b.ctx.slots.entries('sidebar.panellist').find(entry => entry.component === TeamSpaceEntry)).toBeUndefined()
     expect(b.remote.disposeMount).toHaveBeenCalledOnce()
     b.root()
   })
@@ -119,4 +132,16 @@ describe('Team Battle browser plugin', () => {
     expect(b.remote.disposeMount).toHaveBeenCalledOnce()
     b.root()
   })
+})
+
+
+it('adopts a path selected by the composed picker without invoking the native-only service', async () => {
+  const b = await bench()
+  const sidebar = b.ctx.slots.entries('sidebar.sections')[0]
+  const injected = sidebar?.inject as () => { collaboration: TeamCollaborationInjected }
+  expect(await injected().collaboration.createWorkspace('/selected/project')).toBe('selected-workspace')
+  expect(b.createWorkspace).toHaveBeenCalledWith({ path: '/selected/project' })
+  expect(b.pickDirectory).not.toHaveBeenCalled()
+  await b.dispose?.()
+  b.root()
 })

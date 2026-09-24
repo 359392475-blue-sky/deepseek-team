@@ -23,10 +23,11 @@ interface LauncherPolicy {
   readonly wrapper?: string
 }
 
-/** Public product launcher plus the build-only WebWorker packer. */
+/** Product launcher, build-only packer, and the external event callback. */
 const MANIFEST_BIN_ALLOWLIST = new Map<string, ManifestBin>([
   ['apps/cli/package.json', { dsh: 'lib/bin.js' }],
   ['packages/experimental/webworker-packer/package.json', { 'dsh-pack-vfs-image': './bin.js' }],
+  ['packages/experimental/team-battle-connector-http/package.json', { 'dsh-team-battle-codex-hook': './lib/bin.js' }],
 ])
 
 /** Every JavaScript executable in an application or packaging workspace has one explicit role. */
@@ -36,6 +37,9 @@ const EXECUTABLE_SOURCE_ALLOWLIST = new Map<string, string>([
   ['packages/context/time-context/tests/fixtures/driver.ts', 'test-only subprocess driver'],
   ['packages/experimental/webworker-packer/bin.js', 'build-only wrapper'],
   ['packages/experimental/webworker-packer/src/bin.ts', 'build-only implementation'],
+  ['packages/experimental/team-battle-connector-http/deploy/pack.mjs', 'build-only shared-server packer'],
+  ['packages/experimental/team-battle-connector-http/deploy/smoke.mjs', 'test-only packaged dsh profile smoke'],
+  ['packages/experimental/team-battle-connector-http/src/codex-hook.ts', 'external event callback; does not start a Harness host'],
   ['packages/sdk/client/tests/fake-runtime.ts', 'test-only SDK runtime peer'],
   ['packages/session/session-telemetry-otel/tests/fixtures/driver.ts', 'test-only subprocess driver'],
   ['packages/shell/tool-pwsh/tests/fixtures/loader/driver.ts', 'test-only subprocess driver'],

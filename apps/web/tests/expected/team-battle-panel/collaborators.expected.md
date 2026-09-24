@@ -1,0 +1,1 @@
+- text: Notes hardware research Morgan Dale

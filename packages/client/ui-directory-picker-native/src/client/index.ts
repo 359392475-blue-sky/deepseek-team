@@ -1,4 +1,5 @@
 /** Native directory flow using the local desktop bridge or the Host's OS chooser. */
+import { createElement } from 'react'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the SlotMap merge declaring the directory-flow holes.
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
@@ -23,6 +24,8 @@ export function apply(ctx: ClientContext): void {
   }).__DSH_DIRECTORY_PICKER__
   const pick = desktop === undefined ? () => ctx.uiWorkspace.pickDirectory() : () => desktop.pick()
   const injected = (): NativeFlowInjected => ({ pick })
+  ctx.slots.registerFactory({ name: 'workspace.directoryFlow', scope: 'root' },
+    props => createElement(NativeDirectoryFlow, { ...props, ...injected() }))
   // Both declaration lifetimes must be live before the pair installs; the
   // generator makes the two registrations one transactional effect. The
   // outer/inner nesting order is arbitrary; neither hole has precedence.

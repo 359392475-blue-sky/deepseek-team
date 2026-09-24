@@ -1,6 +1,7 @@
 // Keyless assembled-browser coverage for the private Team Battle Web profiles
 // over real Host storage and generated Typert Remote calls.
-import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Browser, Locator, Page } from 'playwright'
@@ -22,6 +23,9 @@ const FILE_ACTIONS_EXPECTED = join(SNAPSHOT_DIR, 'file-actions.expected.md')
 const SHARED_WORKFLOW_EXPECTED = join(SNAPSHOT_DIR, 'shared-workflow.expected.md')
 const CREATE_AUTH_EXPECTED = join(SNAPSHOT_DIR, 'create-authorization.expected.md')
 const COMPOSER_GEOMETRY_EXPECTED = join(SNAPSHOT_DIR, 'composer-geometry.expected.md')
+const TEAM_THEME_EXPECTED = join(SNAPSHOT_DIR, 'team-theme.expected.md')
+const COLLABORATORS_EXPECTED = join(SNAPSHOT_DIR, 'collaborators.expected.md')
+const PUBLICATION_CONFLICT_EXPECTED = join(SNAPSHOT_DIR, 'publication-conflict.expected.md')
 const OVERLAY = fileURLToPath(new URL('./team-battle-panel.overlay.yml', import.meta.url))
 const HOST_PATCH = fileURLToPath(new URL('../../../packages/experimental/team-battle-profile/cordis.patch.yml', import.meta.url))
 const WEB_PATCH = fileURLToPath(new URL('../../../packages/experimental/team-battle-web-profile/cordis.patch.yml', import.meta.url))
@@ -72,7 +76,7 @@ async function weaponCount(game: Locator): Promise<number> {
 async function selectView(page: Page, name: 'Chat' | 'Team Space'): Promise<void> {
   const team = page.locator('[data-team-space-view]')
   if (name === 'Chat') {
-    if (await team.isVisible()) await team.getByRole('button', { name: 'Conversation', exact: true }).click()
+    if (await team.isVisible()) await page.locator('[data-team-conversation-entry]').click()
   } else if (!(await team.isVisible())) {
     await page.locator('[data-team-space-entry]').click()
   }
@@ -212,7 +216,7 @@ describe('web e2e: Team Battle panel', () => {
 
     await selectView(page, 'Team Space')
     const team = page.locator('[data-team-space-view]')
-    await expect.poll(async () => await team.getByRole('combobox', { name: 'Choose Team Space', exact: true }).inputValue()).toBe('lowpower-team-battle')
+    await team.getByRole('heading', { name: 'DeepSeek Harness 团战版', exact: true }).waitFor()
     await team.getByRole('button', { name: 'Tasks', exact: true }).click()
 
     await team.getByRole('button', { name: 'New task', exact: true }).click()
@@ -231,6 +235,7 @@ describe('web e2e: Team Battle panel', () => {
 
     await selectView(page, 'Chat')
     await game.getByRole('heading', { name: 'Collaboration Flight' }).waitFor({ timeout: 10_000 })
+    await game.getByRole('button', { name: 'Expand game', exact: true }).click()
     await expect.poll(async () => await fraction(game, 'Core HP'), { timeout: 10_000 }).toEqual([TASK_WEIGHT, TASK_WEIGHT])
     const shieldBefore = await fraction(game, 'Leisure shield')
     await game.getByRole('button', { name: 'Fire special weapon', exact: true }).click()
@@ -315,7 +320,7 @@ describe('web e2e: Team Battle panel', () => {
     url.hash = 'team'
     await filesPage.goto(url.href, { waitUntil: 'load' })
     await selectView(filesPage, 'Team Space')
-    expect(await filesPage.locator('[data-team-space-entry]').evaluate(element => element.closest('[inert]') !== null)).toBe(true)
+    expect(await filesPage.locator('[data-team-space-entry]').evaluate(element => element.closest('[inert]') !== null)).toBe(false)
     const files = filesPage.locator('[data-team-space-view]')
     await files.getByRole('button', { name: 'New folder', exact: true }).waitFor({ timeout: 15_000 })
     await files.getByRole('button', { name: 'Tasks', exact: true }).click()
@@ -467,18 +472,12 @@ describe('web e2e: Team Battle panel', () => {
 })
 
 const SHARED_SERVER_OVERLAY = fileURLToPath(new URL('./team-battle-shared-server.overlay.yml', import.meta.url))
-const SHARED_PROJECT_NAME = 'Shared browser delivery project'
-const SHARED_TASK_TITLE = 'Ship a reviewed collaboration file'
-const SHARED_FILE_NAME = 'shared-delivery.md'
+const SHARED_PROJECT_NAME = 'Notes hardware research'
+const SHARED_TASK_TITLE = 'Review the Notes hardware decision'
+const SHARED_FILE_NAME = 'hardware-research.md'
 const CREATION_TOKEN_ENV = 'TEAM_BATTLE_E2E_CREATION_TOKEN'
 const CREATION_TOKEN = 'keyless-browser-server-creation'
-
-async function openTeamManager(page: Page): Promise<Locator> {
-  const dialog = page.getByRole('dialog', { name: 'Spaces and members', exact: true })
-  if (!(await dialog.isVisible())) await page.getByRole('button', { name: 'Spaces and members', exact: true }).click()
-  await dialog.waitFor()
-  return dialog
-}
+const CLIENT_CREATION_TOKEN_ENV = 'TEAM_BATTLE_E2E_CLIENT_CREATION_TOKEN'
 
 async function openTeamPage(page: Page, scaffold: WebScaffold): Promise<Locator> {
   const url = new URL(scaffold.authenticatedUrl)
@@ -498,16 +497,23 @@ describe('web e2e: shared Team Space across isolated Hosts', () => {
   let colleaguePage: Page
   let serverOrigin: string
   let originalCreationToken: string | undefined
+  let originalClientCreationToken: string | undefined
+  let profileDirectory: string | undefined
+  let clientProfile: string
   let ownerConsole: ReturnType<typeof watchConsole>
   let colleagueConsole: ReturnType<typeof watchConsole>
 
   beforeAll(async () => {
     originalCreationToken = process.env[CREATION_TOKEN_ENV]
+    originalClientCreationToken = process.env[CLIENT_CREATION_TOKEN_ENV]
     process.env[CREATION_TOKEN_ENV] = CREATION_TOKEN
+    process.env[CLIENT_CREATION_TOKEN_ENV] = 'incorrect-creation-code'
+    profileDirectory = mkdtempSync(join(tmpdir(), 'dsh-team-client-profile-'))
+    clientProfile = join(profileDirectory, 'shared-client.yml')
     const launch = async (serverMode: boolean): Promise<WebScaffold> => {
       const world = await launchWebScaffold({
         directoryPicker: 'profile',
-        extraOverlayPath: serverMode ? [HOST_PATCH, WEB_PATCH, SHARED_SERVER_OVERLAY] : [HOST_PATCH, WEB_PATCH],
+        extraOverlayPath: serverMode ? [HOST_PATCH, WEB_PATCH, SHARED_SERVER_OVERLAY] : [clientProfile, WEB_PATCH],
         extraInstallAnchors: INSTALL_ANCHORS,
       })
       worlds.push(world)
@@ -517,6 +523,9 @@ describe('web e2e: shared Team Space across isolated Hosts', () => {
     const origin = (await server.ctx.teamBattle.teams()).hosting.origins[0]
     if (origin === undefined) throw new Error('dedicated Team server did not advertise its allocated listener')
     serverOrigin = origin
+    writeFileSync(clientProfile, readFileSync(HOST_PATCH, 'utf8')
+      .replace('https://lowpower.me/team-battle', serverOrigin)
+      .replace('TEAM_BATTLE_SERVER_ACCESS_TOKEN', CLIENT_CREATION_TOKEN_ENV))
     owner = await launch(false)
     colleague = await launch(false)
     expect(new Set(worlds.map(world => world.workspaceCwd)).size).toBe(3)
@@ -541,6 +550,9 @@ describe('web e2e: shared Team Space across isolated Hosts', () => {
     }
     if (originalCreationToken === undefined) delete process.env.TEAM_BATTLE_E2E_CREATION_TOKEN
     else process.env[CREATION_TOKEN_ENV] = originalCreationToken
+    if (originalClientCreationToken === undefined) delete process.env.TEAM_BATTLE_E2E_CLIENT_CREATION_TOKEN
+    else process.env[CLIENT_CREATION_TOKEN_ENV] = originalClientCreationToken
+    if (profileDirectory !== undefined) rmSync(profileDirectory, { recursive: true, force: true })
     if (failures.length > 0) throw new AggregateError(failures, 'shared Team browser fixtures did not close cleanly')
   })
 
@@ -551,18 +563,43 @@ describe('web e2e: shared Team Space across isolated Hosts', () => {
     })
     const ownerTeam = ownerPage.locator('[data-team-space-view]')
     const colleagueTeam = colleaguePage.locator('[data-team-space-view]')
-    const manager = await openTeamManager(ownerPage)
-    await manager.getByRole('button', { name: 'Start a project', exact: true }).click()
-    await manager.getByLabel('Shared server address', { exact: true }).fill(serverOrigin)
-    const creationCode = manager.getByLabel(/^Server creation /)
-    await creationCode.fill('incorrect-creation-code')
+    await ownerPage.locator('[data-team-create-entry]').click()
+    const manager = ownerPage.getByRole('dialog')
+    await manager.getByRole('heading', { name: 'Start a team project', exact: true }).waitFor()
+    expect(await manager.getByLabel('Shared server address', { exact: true }).count()).toBe(0)
+    expect(await manager.getByLabel(/^Server creation /).count()).toBe(0)
+    expect(await manager.getByRole('button', { name: 'My spaces', exact: true }).count()).toBe(0)
+    expect(await manager.getByRole('button', { name: 'Close', exact: true }).isVisible()).toBe(true)
+    const themeChecks: string[] = []
+    try {
+      for (const colorScheme of ['dark', 'light'] as const) {
+        await ownerPage.emulateMedia({ colorScheme })
+        await expect.poll(async () => await ownerTeam.evaluate((element, dark) => {
+          const color = getComputedStyle(element).backgroundColor
+          const channels = color.match(/\d+/g)?.slice(0, 3).map(Number) ?? []
+          return channels.length === 3 && channels.every(channel => dark ? channel < 90 : channel > 200)
+        }, colorScheme === 'dark')).toBe(true)
+        const close = await manager.getByRole('button', { name: 'Close', exact: true }).boundingBox()
+        expect(close?.width).toBeGreaterThanOrEqual(24)
+        expect(close?.height).toBeGreaterThanOrEqual(24)
+        themeChecks.push(`- ${colorScheme}: team background follows the application theme; close control is visible and at least 24px.`)
+      }
+      await ownerPage.setViewportSize({ width: 480, height: 900 })
+      const overflow = await ownerPage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+      expect(overflow).toBeLessThanOrEqual(1)
+      themeChecks.push('- 480px: create form has no document horizontal overflow.')
+    } finally {
+      await ownerPage.emulateMedia({ colorScheme: 'light' })
+      await ownerPage.setViewportSize({ width: 1680, height: 1000 })
+    }
+    await compareOrRefreshGolden(TEAM_THEME_EXPECTED, themeChecks.join('\n'), MODE)
     await manager.getByLabel('Project name', { exact: true }).fill(SHARED_PROJECT_NAME)
     await manager.getByLabel('Project goal and deliverables', { exact: true }).fill('Two independent computers collaborate through retained published bytes.')
     await manager.getByLabel('My name', { exact: true }).fill('Morgan')
     await manager.getByRole('combobox', { name: /^My role\b/ }).selectOption({ label: 'Product' })
     await manager.getByRole('button', { name: 'Create shared space', exact: true }).click()
     await manager.getByRole('alert').waitFor()
-    expect(await manager.getByRole('alert').textContent()).toContain('The server did not accept the creation authorization code.')
+    expect(await manager.getByRole('alert').textContent()).toContain('The team service cannot create a project.')
     expect(await manager.getByRole('alert').textContent()).not.toContain('gateway/internal')
     await compareOrRefreshGolden(CREATE_AUTH_EXPECTED, await captureStableAria(ownerPage, '[role="alert"]', owner.workspaceCwd), MODE)
     expect(await manager.getByLabel('Project name', { exact: true }).inputValue()).toBe(SHARED_PROJECT_NAME)
@@ -570,7 +607,7 @@ describe('web e2e: shared Team Space across isolated Hosts', () => {
     expect(await manager.getByLabel('My name', { exact: true }).inputValue()).toBe('Morgan')
     expect((await owner.ctx.teamBattle.teams()).teams.some(team => team.name === SHARED_PROJECT_NAME)).toBe(false)
     expect((await server.ctx.teamBattle.teams()).teams.some(team => team.name === SHARED_PROJECT_NAME)).toBe(false)
-    await creationCode.fill(CREATION_TOKEN)
+    process.env[CLIENT_CREATION_TOKEN_ENV] = CREATION_TOKEN
     await manager.getByRole('button', { name: 'Create shared space', exact: true }).click()
     await manager.getByRole('heading', { name: SHARED_PROJECT_NAME, exact: true }).waitFor()
     const ownSpace = (await owner.ctx.teamBattle.teams()).teams.find(team => team.name === SHARED_PROJECT_NAME)
@@ -580,19 +617,55 @@ describe('web e2e: shared Team Space across isolated Hosts', () => {
     expect((await server.ctx.teamBattle.teams()).teams.find(team => team.id === teamId)?.mode).toBe('hosted')
     expect(await ownerTeam.getByRole('combobox', { name: 'Acting member', exact: true }).count()).toBe(0)
 
-    await openTeamManager(ownerPage)
-    await manager.getByRole('button', { name: 'Invite a colleague', exact: true }).click()
+    if (!(await manager.isVisible())) await ownerTeam.getByRole('button', { name: 'Invite a colleague', exact: true }).click()
     await manager.getByLabel('Colleague name', { exact: true }).fill('Dale')
     await manager.getByRole('combobox', { name: /^Colleague role\b/ }).selectOption({ label: 'Engineering' })
-    await manager.getByRole('button', { name: 'Generate invitation', exact: true }).click()
+    await manager.getByRole('button', { name: 'Generate invitation link', exact: true }).click()
     const inviteCode = await manager.getByRole('textbox', { name: /^Invitation\b/ }).inputValue()
-    expect(inviteCode.length).toBeGreaterThan(0)
+    const inviteUrl = new URL(inviteCode)
+    expect(inviteUrl.origin).toBe(new URL(serverOrigin).origin)
+    expect(inviteUrl.hash).toContain('token=')
+    expect(inviteUrl.search).toBe('')
+    const invitationPage = await newEnglishPage(browser)
+    let copiedInvitation = ''
+    try {
+      await invitationPage.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: serverOrigin })
+      const response = await invitationPage.goto(inviteCode)
+      expect(response?.status()).toBe(200)
+      await invitationPage.getByRole('heading', { name: '邀请已准备好，下一步在你的团队版中加入', exact: true }).waitFor()
+      await invitationPage.getByRole('list', { name: '加入团队的三个步骤', exact: true }).waitFor()
+      expect(await invitationPage.getByRole('status').textContent()).toContain('此页面尚未验证邀请是否过期')
+      await invitationPage.getByRole('button', { name: '复制邀请链接', exact: true }).click()
+      await invitationPage.getByRole('button', { name: '已复制邀请链接', exact: true }).waitFor()
+      copiedInvitation = await invitationPage.evaluate(async () => await navigator.clipboard.readText())
+      expect(copiedInvitation).toBe(inviteCode)
+      expect(await invitationPage.locator('form').count()).toBe(0)
+      expect((await owner.ctx.teamBattle.summary({ teamId })).invites.find(invite => invite.memberName === 'Dale')?.status).toBe('pending')
+      await invitationPage.goto(`${serverOrigin}/#team=${teamId}`)
+      await invitationPage.getByRole('heading', { name: '邀请链接不完整', exact: true }).waitFor()
+      expect(await invitationPage.getByRole('button', { name: '复制邀请链接', exact: true }).isVisible()).toBe(false)
+      expect(await invitationPage.getByRole('status').textContent()).toContain('重新复制同事发来的完整链接')
+      const alternate = await owner.ctx.teamBattle.createInvite({ teamId, memberName: 'Fragment navigation check', memberRole: 'Test' })
+      await invitationPage.goto(alternate.inviteCode)
+      await invitationPage.getByRole('heading', { name: '邀请已准备好，下一步在你的团队版中加入', exact: true }).waitFor()
+      await invitationPage.getByRole('button', { name: '复制邀请链接', exact: true }).click()
+      await invitationPage.getByRole('button', { name: '已复制邀请链接', exact: true }).waitFor()
+      expect(await invitationPage.evaluate(async () => await navigator.clipboard.readText())).toBe(alternate.inviteCode)
+      expect((await owner.ctx.teamBattle.summary({ teamId })).invites.find(invite => invite.id === alternate.id)?.status).toBe('pending')
+      await invitationPage.goto(inviteCode)
+      await invitationPage.getByRole('button', { name: '复制邀请链接', exact: true }).click()
+      await invitationPage.getByRole('button', { name: '已复制邀请链接', exact: true }).waitFor()
+      copiedInvitation = await invitationPage.evaluate(async () => await navigator.clipboard.readText())
+      expect(copiedInvitation).toBe(inviteCode)
+    } finally {
+      await invitationPage.close()
+    }
 
-    const colleagueManager = await openTeamManager(colleaguePage)
-    await colleagueManager.getByRole('button', { name: 'Join with an invitation', exact: true }).click()
-    await colleagueManager.getByRole('textbox', { name: /^Invitation\b/ }).fill(inviteCode)
+    await colleaguePage.locator('[data-team-join-entry]').click()
+    const colleagueManager = colleaguePage.getByRole('dialog', { name: 'Join with an invitation', exact: true })
+    await colleagueManager.getByRole('textbox', { name: /^Invitation\b/ }).fill(copiedInvitation)
     await colleagueManager.getByRole('button', { name: 'Join this project', exact: true }).click()
-    await expect.poll(async () => await colleagueTeam.getByRole('combobox', { name: 'Choose Team Space', exact: true }).inputValue()).toBe(teamId)
+    await expect.poll(async () => (await colleague.ctx.teamBattle.teams()).teams.some(team => team.id === teamId)).toBe(true)
     const joinedSpace = (await colleague.ctx.teamBattle.teams()).teams.find(team => team.id === teamId)
     if (joinedSpace === undefined) throw new Error('second Host did not retain the invitation membership')
     expect(joinedSpace.mode).toBe('joined')
@@ -601,6 +674,32 @@ describe('web e2e: shared Team Space across isolated Hosts', () => {
     expect(await colleagueTeam.getByRole('combobox', { name: 'Acting member', exact: true }).count()).toBe(0)
     await ownerPage.keyboard.press('Escape')
     await colleaguePage.keyboard.press('Escape')
+
+    await ownerPage.locator(`[data-team-project-chat="${teamId}"]`).click()
+    const binding = ownerPage.getByRole('dialog', { name: 'Choose a local project folder', exact: true })
+    await binding.getByRole('button', { name: 'Choose another folder', exact: true }).click()
+    const localProject = join(owner.workspaceCwd, 'notes-hardware-research')
+    mkdirSync(localProject)
+    const directoryPicker = ownerPage.getByRole('dialog', { name: 'Select Workspace Directory', exact: true })
+    await directoryPicker.getByRole('button', { name: 'Edit path', exact: true }).click()
+    await directoryPicker.getByRole('textbox', { name: 'Edit path', exact: true }).fill(localProject)
+    await directoryPicker.getByRole('textbox', { name: 'Edit path', exact: true }).press('Enter')
+    await directoryPicker.getByRole('button', { name: 'Open', exact: true }).click()
+    const collaborators = ownerPage.locator('[data-team-collaborators]')
+    await collaborators.getByText('Morgan', { exact: true }).waitFor()
+    await collaborators.getByText('Dale', { exact: true }).waitFor()
+    await compareOrRefreshGolden(COLLABORATORS_EXPECTED, await captureStableAria(ownerPage, '[data-team-collaborators]', owner.workspaceCwd), MODE)
+    expect(await owner.ctx.teamBattle.workspaceLinks()).toHaveLength(1)
+    expect(await colleague.ctx.teamBattle.workspaceLinks()).toHaveLength(0)
+    const privateProject = join(owner.workspaceCwd, 'private-unlinked')
+    mkdirSync(privateProject)
+    await ownerPage.getByRole('button', { name: 'Add workspace', exact: true }).click()
+    await directoryPicker.getByRole('button', { name: 'Edit path', exact: true }).click()
+    await directoryPicker.getByRole('textbox', { name: 'Edit path', exact: true }).fill(privateProject)
+    await ownerPage.keyboard.press('Enter')
+    await directoryPicker.getByRole('button', { name: 'Open', exact: true }).click()
+    await expect.poll(async () => await collaborators.count()).toBe(0)
+    await ownerPage.locator(`[data-team-space-id="${teamId}"]`).click()
 
     await ownerTeam.getByRole('button', { name: 'Tasks', exact: true }).click()
     await ownerTeam.getByRole('button', { name: 'New task', exact: true }).click()
@@ -642,6 +741,32 @@ describe('web e2e: shared Team Space across isolated Hosts', () => {
     await publish.getByLabel('Choose file', { exact: true }).setInputFiles({ name: SHARED_FILE_NAME, mimeType: 'text/markdown', buffer: content })
     await publish.getByLabel('Version label', { exact: true }).fill('v1.1')
     await publish.getByRole('button', { name: 'Publish', exact: true }).click()
+    await colleagueTeam.getByRole('button', { name: SHARED_FILE_NAME, exact: true }).waitFor()
+    await colleagueTeam.getByRole('button', { name: 'Publish to Team Space', exact: true }).first().click()
+    const revisedContent = Buffer.from('# Revised delivery\nThe old shared file must remain unchanged.\n')
+    await publish.getByLabel('Choose file', { exact: true }).setInputFiles({
+      name: SHARED_FILE_NAME, mimeType: 'text/markdown', buffer: revisedContent,
+    })
+    await publish.getByLabel('Version label', { exact: true }).fill('v1.2')
+    await publish.getByLabel('Note', { exact: true }).fill('Revised delivery with retained upload input.')
+    await publish.getByRole('button', { name: 'Publish', exact: true }).click()
+    await publish.getByRole('alert').waitFor()
+    expect(await publish.getByRole('alert').textContent()).toContain('Your input has been kept.')
+    expect(await publish.getByLabel('Name', { exact: true }).inputValue()).toBe(SHARED_FILE_NAME)
+    expect(await publish.getByLabel('Version label', { exact: true }).inputValue()).toBe('v1.2')
+    expect(await publish.locator('textarea').inputValue()).toBe('Revised delivery with retained upload input.')
+    expect(await publish.getByLabel('Choose file', { exact: true }).evaluate((input: HTMLInputElement) => input.files?.[0]?.name)).toBe(SHARED_FILE_NAME)
+    await compareOrRefreshGolden(PUBLICATION_CONFLICT_EXPECTED,
+      await captureStableAria(colleaguePage, '[role="dialog"]', colleague.workspaceCwd), MODE)
+    expect((await server.ctx.teamBattle.space({ teamId })).files.map(file => file.name)).toEqual([SHARED_FILE_NAME])
+    const revisedName = `revised-${SHARED_FILE_NAME}`
+    await publish.getByLabel('Name', { exact: true }).fill(revisedName)
+    await publish.getByRole('button', { name: 'Publish', exact: true }).click()
+    await colleagueTeam.getByRole('button', { name: revisedName, exact: true }).waitFor()
+    const revised = (await server.ctx.teamBattle.space({ teamId })).files.find(file => file.name === revisedName)
+    if (revised === undefined) throw new Error('renamed upload retry did not reach the shared server')
+    const revisedDownload = await owner.ctx.teamBattle.readFile({ teamId, fileId: revised.id })
+    expect(Buffer.from(revisedDownload.contentBase64, 'base64')).toEqual(revisedContent)
     await colleagueTeam.getByRole('button', { name: SHARED_FILE_NAME, exact: true }).click()
     await colleagueTeam.getByRole('button', { name: 'Submit to task', exact: true }).click()
     const submit = colleaguePage.getByRole('dialog', { name: 'Submit to task', exact: true })
@@ -654,7 +779,8 @@ describe('web e2e: shared Team Space across isolated Hosts', () => {
     const published = (await server.ctx.teamBattle.space({ teamId })).files.find(file => file.name === SHARED_FILE_NAME)
     if (published === undefined) throw new Error('shared server did not retain the published file')
     expect(published.createdByMemberId).toBe(joinedSpace.localMemberId)
-    expect((await server.ctx.teamBattle.space({ teamId })).files.map(file => file.name)).toEqual([SHARED_FILE_NAME])
+    const sharedNames = (await server.ctx.teamBattle.space({ teamId })).files.map(file => file.name).sort()
+    expect(sharedNames).toEqual([SHARED_FILE_NAME, revisedName].sort())
     expect(JSON.stringify(await server.ctx.teamBattle.view({ teamId }))).not.toContain(QUERY_TEXT)
     expect(Buffer.from((await owner.ctx.teamBattle.readFile({ teamId, fileId: published.id })).contentBase64, 'base64')).toEqual(content)
     await artifact.getByPlaceholder('Review note').fill('The independent Host retrieved and verified the exact uploaded bytes.')
@@ -663,8 +789,7 @@ describe('web e2e: shared Team Space across isolated Hosts', () => {
     await expect.poll(async () => (await colleague.ctx.teamBattle.view({ teamId })).tasks.find(task => task.id === assigned.id)?.status).toBe('completed')
     expect((await colleague.ctx.teamBattle.view({ teamId })).progress.percent).toBe(100)
 
-    await openTeamManager(ownerPage)
-    await manager.getByRole('button', { name: 'Invite a colleague', exact: true }).click()
+    if (!(await manager.isVisible())) await ownerTeam.getByRole('button', { name: 'Invite a colleague', exact: true }).click()
     await manager.getByRole('button', { name: 'Remove member', exact: true }).click()
     await ownerPage.getByRole('button', { name: 'Confirm removal', exact: true }).click()
     await expect.poll(async () => (await owner.ctx.teamBattle.summary({ teamId })).memberAccess.find(member => member.memberId === joinedSpace.localMemberId)?.status).toBe('revoked')
@@ -685,6 +810,6 @@ describe('web e2e: shared Team Space across isolated Hosts', () => {
 
 describe('Team Battle browser fixtures', () => {
   it.skipIf(MODE === 'record')('keeps the fixture inventory closed', async () => {
-    await assertFixtureInventory(SNAPSHOT_DIR, ['team-space.expected.md', 'file-actions.expected.md', 'shared-workflow.expected.md', 'create-authorization.expected.md', 'composer-geometry.expected.md'])
+    await assertFixtureInventory(SNAPSHOT_DIR, ['team-space.expected.md', 'file-actions.expected.md', 'shared-workflow.expected.md', 'create-authorization.expected.md', 'composer-geometry.expected.md', 'team-theme.expected.md', 'collaborators.expected.md', 'publication-conflict.expected.md'])
   })
 })

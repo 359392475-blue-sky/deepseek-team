@@ -33,6 +33,8 @@ export interface Config {
   readonly maxNetworkBodyBytes?: number
   /** Maximum duration of a Team network request in milliseconds. @default 15000 */
   readonly networkRequestTimeoutMs?: number
+  /** Optional HTTPS download or installation page linked from the invitation landing page. */
+  readonly invitationDownloadUrl?: string
   /** Explicit dedicated-server startup; omission keeps hosting off until a local command. */
   readonly hostedServer?: {
     /** Private bind address, usually 127.0.0.1 behind HTTPS reverse proxying. */
@@ -51,6 +53,7 @@ export const Config: z<Config> = z.object({
   maxBodyBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).required(),
   maxNetworkBodyBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(8 * 1024 * 1024),
   networkRequestTimeoutMs: z.number().step(1).min(1).max(2_147_483_647).default(15_000),
+  invitationDownloadUrl: z.string(),
   hostedServer: z.union([z.object({
     host: z.string().required(),
     port: z.natural().max(65535).required(),
@@ -89,7 +92,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         throw new TeamBattleHttpError(503, 'Team server creation credential is unavailable')
       }
       return timingSafeEqual(createHash('sha256').update(token).digest(), createHash('sha256').update(secret.value).digest())
-    })
+    }, config.invitationDownloadUrl)
     const unregister = ctx.teamBattle.registerNetworkTransport(network)
     try {
       if (hosted !== undefined) {

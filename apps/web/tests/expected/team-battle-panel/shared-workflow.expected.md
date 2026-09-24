@@ -1,5 +1,5 @@
 - article:
-  - strong: Ship a reviewed collaboration file
+  - strong: Review the Notes hardware decision
   - text: Completed
   - paragraph: Publish the selected Markdown file and request independent review. Dale owns implementation; Morgan will verify the published bytes. Morgan will confirm the acceptance criteria before implementation. Criteria confirmed; Dale resumes implementation.
   - text: "Owner: Dale Progress weight: 3 v7"

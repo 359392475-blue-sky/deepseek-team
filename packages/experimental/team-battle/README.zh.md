@@ -38,6 +38,7 @@ kind: "package-reference"
 | `localMemberId` | 必填 | 浏览器变更与本地 Session Query 默认使用的成员。 |
 | `allowSimulation` | `false` | 显式允许本地协作演练请求选择已配置成员。 |
 | `members` | 必填 | 非空 `{ id, name, role, color? }` roster；color 可选，为六位十六进制值。 |
+| `sharedServer` | 未设置 | Host 固定创建目标 `{ url, accessTokenRef }`；凭证留在 Host，请求不能覆盖该配置。 |
 | `maxTeams` | `16` | 托管及已加入团队的数量上限，不含原有空间。 |
 | `maxInvitesPerTeam` | `64` | 每个托管团队保留的邀请数上限。 |
 | `membershipLifetimeHours` | `720` | 受邀成员凭证签发后的绝对有效时长；所有者不会自动过期。 |
@@ -91,7 +92,7 @@ kind: "package-reference"
 <a id="shared-file-space"></a>
 ## 团队文件空间
 
-独立且版本化的 `team_battle_space` 存储域保存文件夹、真实文件字节、元数据和投递记录；开启文件空间不会重写已有 `team_battle` 数据。`space()` 只返回元数据，`readFile({ fileId })` 返回 `{ file, contentBase64 }`。`publishFile` 接收规范 base64、文件名、媒体类型、版本标记、备注、来源及可选父文件夹，服务端计算字节数与 SHA-256。用户必须明确发布；私人对话不会自动进入文件空间。客户端负责使用安全的媒体预览方式，不能把上传的 HTML 作为当前应用执行。
+独立且版本化的 `team_battle_space` 存储域保存文件夹、真实文件字节、元数据和投递记录；开启文件空间不会重写已有 `team_battle` 数据。`space()` 只返回元数据，`readFile({ fileId })` 返回 `{ file, contentBase64 }`。`publishFile` 接收规范 base64、文件名、媒体类型、版本标记、备注、来源及可选父文件夹，服务端计算字节数与 SHA-256。每个父文件夹中的文件和文件夹名称必须唯一。重名会抛出 Remote 错误 `team-battle/name-conflict`，详情为 `{ httpStatus: 409 }`，且不会修改已有文件；应为新项目改名，或将其发布到版本文件夹。版本标记只是元数据，不会替换已发布的字节。用户必须明确发布；私人对话不会自动进入文件空间。客户端负责使用安全的媒体预览方式，不能把上传的 HTML 作为当前应用执行。
 
 `createFolder` 与 `updateSpaceItem` 支持嵌套文件夹、基于 `expectedRevision` 的重命名与删除；同目录重名、非空文件夹、已关联验收或已有投递记录的文件不能删除。文件内容不可覆盖。`submitFile({ fileId, taskId, expectedTaskRevision })` 将文件关联到请求成员已认领的任务，之后复用 `reviewArtifact` 验收；任务域通过内部 URI 引用已保留的字节，文件视图从任务域读取验收状态。两个域共享一个进程内操作队列，避免提交任务与删除文件相互竞态。
 
@@ -109,12 +110,16 @@ kind: "package-reference"
 
 聚合在每次写入前与重开时进行校验。服务卸载先停止接收新变更，等待两个域已接收的操作完成，再关闭存储。关系失败、已变更的部署配置、陈旧任务或产物 revision、缺失 owner、非法评审转换，以及精确一次容量耗尽，都会明确失败。只有 activity（活动）是滚动保留；processed event id 与武器授予绝不驱逐，因为驱逐会让延迟重试生成第二枚武器。事件 id 容量必须覆盖武器容量。
 
+本包不发布运行时 invariant（不变量）companion（配套插件）：项目进度与文件验收视图从存储聚合派生，持久化读写会验证所有权、引用关系与容量。服务不维护可在运行时独立比对的投影副本。
+
 <a id="shared-server-teams"></a>
 ## 共享服务器团队
 
-`teams()` 列出本机已知空间与托管状态，不发出网络请求；`summary({ teamId })` 获取当前成员权限状态，用于交接与成员列表筛选。只有所有者可见邀请详情与受邀成员到期时间。历史身份保留在 `view().members` 中以维持归属；当前成员列表和在线人数必须按摘要中的有效成员 id 筛选。`createTeam({ serverUrl, serverAccessToken, name, goal, memberName, memberRole })` 在服务器上创建数据，本机只保留连接元数据与成员凭证。省略 `serverUrl` 时创建仅含所有者的本机团队。新团队不含模拟同事。连接器单独验证服务器创建权限；本包不保留部署连接码。
+`teams()` 列出本机已知空间与托管状态，不发出网络请求；`summary({ teamId })` 获取当前成员权限状态，用于交接与成员列表筛选。只有所有者可见邀请详情与受邀成员到期时间。历史身份保留在 `view().members` 中以维持归属；当前成员列表和在线人数必须按摘要中的有效成员 id 筛选。`createTeam({ name, goal, memberName, memberRole })` 使用配置的 `sharedServer`，每次操作都在 Host 解析创建凭证。服务器保存共享数据，本机只保留连接元数据与成员凭证；创建凭证及其值不进入浏览器响应或团队存储。已配置的 Host 拒绝客户端覆盖服务器配置。未设置 `sharedServer` 时，高级调用方可提供 `serverUrl` 和 `serverAccessToken`；两者均省略时创建仅含所有者的本机团队。新团队不含模拟同事。
 
-所有者通过 `createInvite` 指定受邀人的姓名和角色，创建绑定成员的邀请。返回的 `dsh-team://join` 邀请码含服务器 URL、团队 id 和随机秘密。`joinRemote({ inviteCode })` 生成设备凭证、兑换邀请，并通过 `ctx.credentials` 保存凭证。服务器只保存凭证与邀请的摘要。邀请默认 24 小时过期（请求可选 1–168 小时）、仅可兑换一次，且可撤销；同一凭证重试同一次兑换是幂等的。`revokeMember` 阻止后续成员操作，并保留历史归属。仅撤销邀请不会撤销已加入成员的权限。 成员到期或被移除后，可在原设备的现有加入入口使用新邀请：必须先由同一服务器明确拒绝旧凭证。已有有效身份、所有者身份或网络请求失败都会阻止替换。新邀请分配新的成员身份；旧任务和文件保留原有归属，所有者可将未完成任务交给新成员。
+所有者通过 `createInvite` 指定受邀人的姓名和角色，创建绑定成员的邀请。返回的 HTTPS 链接（本地部署可用私有 HTTP）将团队 id 与秘密放在 fragment 中，打开链接时秘密不会进入请求 URL。加入表单也接受之前签发的 `dsh-team://join` 邀请码。已配置的 Host 仅接受固定服务器的邀请；携带凭证的 query、重定向与歧义服务器路径会被拒绝。`joinRemote({ inviteCode })` 生成设备凭证、兑换邀请，并通过 `ctx.credentials` 保存凭证。服务器只保存凭证与邀请的摘要。邀请默认 24 小时过期（请求可选 1–168 小时）、仅可兑换一次，且可撤销；同一凭证重试同一次兑换是幂等的。`revokeMember` 阻止后续成员操作，并保留历史归属。仅撤销邀请不会撤销已加入成员的权限。 成员到期或被移除后，可在原设备的现有加入入口使用新邀请：必须先由同一服务器明确拒绝旧凭证。在已有有效成员身份的设备上粘贴同团队邀请，会先实时验证服务器权限，再以原身份打开空间，不兑换邀请或改变角色；所有者及保留的过期、撤销邀请也适用。所有者身份或网络请求失败都会阻止替换。新邀请分配新的成员身份；旧任务和文件保留原有归属，所有者可将未完成任务交给新成员。
+
+`bindWorkspace({ teamId, workspaceId })` 将可访问团队与已注册的本机工作区明确关联，替换该工作区原有关联。`workspaceLinks()` 列出工作区仍注册的关联。关联保存在独立的本机 `team_battle_workspace_links` 存储域，不发布工作区路径或私人 Session 内容，也不能通过共享 `/call` 路由调用。
 
 只有专用连接器调用 `createHostedTeam`、`acceptInvite` 和 `dispatchAuthenticated`，它们均不是浏览器 Remote 方法。共享命令按严格允许列表校验，并从有效成员凭证推导身份。所有者凭证不会自动过期，现有已存储所有者也适用，唯一所有者不能撤销自己的成员权限。受邀成员凭证在 `membershipLifetimeHours` 后到期；已撤销凭证始终被拒绝。真实团队拒绝 `actingMemberId`。团队所有者管理邀请与成员，任务归属及独立验收规则仍然生效。原有浏览器启动凭据拥有私人 Host 权限，绝不能作为团队邀请共享。
 
