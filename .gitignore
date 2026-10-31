@@ -49,3 +49,18 @@ native/system/test/bin/
 
 apps/macos/.build/
 .team-battle-preview-home/
+.env.*
+!.env.example
+*.pem
+*.p12
+DerivedData/
+build/
+dist/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.credentials/
+credentials/
+*.key
+Secrets/

@@ -1,0 +1,231 @@
+/* 贪吃蛇 · 样式（05 §3.9 / NFR-06 / 06 P-07 遮罩 55%）
+ * 文字与控件对比度经实算：正文 15.94:1、次要 7.65:1、蛇身/棋盘 9.60:1（WCAG 相对亮度公式）。
+ */
+:root {
+  --bg: #0F1216;
+  --panel: #1E2530;
+  --board: #171C22;
+  --line: #3A4553;
+  --text: #E8EDF2;
+  --muted: #9AA7B4;
+  --accent: #3DDC84;
+  --focus: #7CD8FF;
+  --pad: clamp(48px, 13vw, 58px);
+  --gap: 10px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.app {
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
+
+/* —— 顶部状态栏：始终可见 —— */
+.hud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  align-items: baseline;
+  justify-content: center;
+  background: var(--panel);
+  border: 1px solid #2A323D;
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.hud-item { display: flex; align-items: baseline; gap: 6px; }
+.hud-label { color: var(--muted); font-size: 13px; }
+.hud-value { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.hud-note { color: var(--muted); font-size: 12px; }
+
+/* —— 棋盘 —— */
+.board-wrap {
+  position: relative;
+  min-width: 0;              /* 关键：允许被网格压缩，否则窄视口下棋盘溢出（自测 TC-16 发现） */
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.board-box {
+  position: relative;
+  flex: 0 0 auto;
+  touch-action: none;          /* 棋盘上禁止滚动/缩放（FR-05 / NFR-07） */
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px #232A32;
+}
+
+canvas { display: block; }
+
+/* —— 遮罩 / 提示 —— */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+}
+
+.overlay[data-mode="none"] { display: none; }
+
+.overlay[data-mode="hint"] {
+  background: transparent;
+  align-items: flex-end;
+  pointer-events: none;        /* 提示不阻断滑动 */
+  padding-bottom: 10px;
+}
+
+/* 06 P-07：暂停遮罩 55% 不透明度，棋盘局势仍可分辨 */
+.overlay[data-mode="mask"],
+.overlay[data-mode="result"] { background: rgba(15, 18, 22, 0.55); }
+
+.overlay-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  background: rgba(15, 18, 22, 0.9);
+  border: 1px solid #2A323D;
+  border-radius: 10px;
+  padding: 14px 18px;
+  max-width: 100%;
+}
+
+.overlay-title { margin: 0; font-size: 20px; font-weight: 700; }
+.overlay-text { margin: 0; font-size: 15px; line-height: 1.4; }
+.overlay-lines { margin: 0; display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: 14px; }
+.overlay-line { display: block; }
+
+/* —— 短提示（READY 反向） —— */
+.toast {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 12px;
+  max-width: 94%;
+  background: rgba(30, 37, 48, 0.96);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  pointer-events: none;
+  text-align: center;
+}
+
+/* —— 极窄视口提示（非阻塞，绝对定位，不影响棋盘尺寸计算） —— */
+.notice {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 8px 12px;
+  max-width: 94%;
+  background: rgba(30, 37, 48, 0.96);
+  border: 1px solid #4A5568;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* —— 控件区 —— */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 12px;
+}
+
+.field { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; }
+
+select, .btn, .pad {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: inherit;
+  touch-action: manipulation;
+}
+
+select { padding: 8px 10px; font-size: 15px; min-height: 44px; }
+.btn { padding: 10px 14px; font-size: 15px; min-height: 44px; cursor: pointer; }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn-primary { border-color: var(--accent); }
+
+.dpad {
+  flex-basis: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, var(--pad));
+  grid-template-rows: repeat(3, var(--pad));
+  gap: var(--gap);
+  justify-content: center;
+}
+
+.pad { font-size: 18px; cursor: pointer; }
+.pad-up { grid-area: 1 / 2; }
+.pad-left { grid-area: 2 / 1; }
+.pad-right { grid-area: 2 / 3; }
+.pad-down { grid-area: 3 / 2; }
+
+/* 紧凑档（仅按视口判定，避免"隐藏方向键 -> 棋盘变大 -> 又显示"的振荡） */
+.compact .dpad { display: none; }
+
+/* 中宽以上：控制区移到棋盘右侧，让棋盘用满可用高度（桌面观感与可用面积）。
+   阈值取 720×480：低于此尺寸改用纵向堆叠（窄屏/手机）。 */
+@media (min-width: 720px) and (min-height: 480px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      "hud hud"
+      "board side";
+  }
+  .hud { grid-area: hud; }
+  .board-wrap { grid-area: board; }
+  .controls {
+    grid-area: side;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-content: center;
+    justify-content: center;
+    width: calc(var(--pad) * 3 + var(--gap) * 2);
+  }
+  .dpad { flex-basis: auto; }
+  .field, .controls .btn { width: 100%; justify-content: center; }
+  .field { justify-content: center; }
+  .field select { flex: 1; }
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}

@@ -46,3 +46,7 @@ pnpm run install:macos
 内置服务只绑定到 `127.0.0.1`，`NSAllowsLocalNetworking` 是唯一的 App Transport Security（应用传输安全）例外。App Sandbox（应用沙箱）保持关闭，因为 coding agent（编码智能体）及其受管进程需要访问所选 workspace 和用户配置的工具；执行控制仍由 Harness 权限策略负责。
 
 默认源码构建仅支持 arm64，使用 ad-hoc 签名供本地使用，不会执行 Developer ID 签名或 Apple notarization（公证）。单独分发的团战版 ZIP 内含已使用 Developer ID 签名并通过 Apple 公证的应用，详见[下载与安装入口](../../README.zh.md#start-team-battle)。已安装资源只读属于打包保护，并不是安全沙箱。更新时必须重新构建并测试完整应用包；不要原地修改已构建或正在运行的应用。
+
+## 公开页面
+
+`public-sites/` 保存现有 lowpower.me 目录中的静态[下载指南](https://lowpower.me/team-battle-downloads/)和[协作示例](https://lowpower.me/team-battle-demo/)。源码从已公开文件恢复，不包含 ZIP 安装包或私人团队存储。规范网址省略 `index.html`，主站站点地图仅收录公开介绍页。`public-sites/deploy.py` 默认只读预检；使用 `--execute` 和完整上一版清单才替换各页面 HTML 及其独立 Nginx 配置，同时保留备份和其他文件。 下一次部署基线是仓库根目录的 `.artifacts/public-sites-footer-label-20261003/deployed-baseline.json`；发布工具在报告成功前检查介绍页、显式 index 和缺失页的 HTTP 状态。 每个公开页面底部均有唯一作品集入口「查看蓝天更多作品」，链接到 `https://lowpower.me/`。底部留白避免既有统计开关覆盖链接触控区和键盘焦点。
